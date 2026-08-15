@@ -1,0 +1,27 @@
+:root {
+  /* Figma 최종 디자인 !! — 375×812, content 335, pad 20 */
+  --mc-width: 375px;
+  --mc-height: 812px;
+  --mc-pad: 20px;
+  --mc-content: 335px;
+
+  --mc-bg: #ffffff;
+  --mc-ink: #262626;
+  --mc-ink-60: rgba(38, 38, 38, 0.6);
+  --mc-ink-50: rgba(38, 38, 38, 0.5);
+  --mc-ink-70: rgba(38, 38, 38, 0.7);
+  --mc-green: #366861;
+  --mc-green-deep: #2d5a54;
+  --mc-gold: #ffd788;
+  --mc-gold-soft: #fff6b2;
+  --mc-gold-fill: rgba(255, 215, 136, 0.58);
+  --mc-nav: #262626;
+  --mc-line: #e5e7eb;
+  --mc-gray-500: #6b7280;
+
+  /* Figma fonts: HUFS / Paperlogy / Plus Jakarta — fallbacks until webfonts added */
+  --mc-font: 'Pretendard', 'Noto Sans KR', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont,
+    sans-serif;
+  --mc-serif: 'HUFS M', Georgia, 'Times New Roman', serif;
+  --mc-serif-light: 'HUFS L', Georgia, 'Times New Roman', serif;
+}
