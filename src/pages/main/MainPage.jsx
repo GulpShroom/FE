@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { AppShell } from '../../components/AppShell'
-import logo from '../../assets/final/logo.png'
+import logo from '../../assets/final/logo-mark.png'
 import planeIcon from '../../assets/final/plane-tip-clear.png'
 import ctaArrow from '../../assets/final/cta-arrow.svg'
 import emptyJourney from '../../assets/final/empty-journey.svg'
@@ -176,7 +176,7 @@ export default function MainPage() {
       <AppShell hideHeader>
         <div className="page page--main page--main-empty">
           <div className="main-brand">
-            <img className="main-brand__logo" src={logo} alt="M·Carry" width={133} height={40} />
+            <img className="main-brand__logo" src={logo} alt="M·Carry" width={131} height={39} />
             <p className="main-brand__tagline">Carry the Moment, Share the Value</p>
           </div>
 
@@ -212,7 +212,7 @@ export default function MainPage() {
     <AppShell hideHeader>
       <div className="page page--main">
         <div className="main-brand">
-          <img className="main-brand__logo" src={logo} alt="M·Carry" width={133} height={40} />
+          <img className="main-brand__logo" src={logo} alt="M·Carry" width={131} height={39} />
           <p className="main-brand__tagline">Carry the Moment, Share the Value</p>
         </div>
 
