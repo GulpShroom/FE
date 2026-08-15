@@ -18,10 +18,18 @@
   --mc-nav: #262626;
   --mc-line: #e5e7eb;
   --mc-gray-500: #6b7280;
+  --mc-metric-muted: #707070;
+  --mc-panel-cream: #f8e8c3;
 
-  /* Figma fonts: HUFS / Paperlogy / Plus Jakarta — fallbacks until webfonts added */
-  --mc-font: 'Pretendard', 'Noto Sans KR', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont,
-    sans-serif;
-  --mc-serif: 'HUFS M', Georgia, 'Times New Roman', serif;
-  --mc-serif-light: 'HUFS L', Georgia, 'Times New Roman', serif;
+  /*
+   * Figma fonts (local webfonts in src/assets/fonts)
+   * - Paperlogy: 마이 프로필 / 제품 shortName / 모달 본문
+   * - HUFS M/L: 여권·케어 제목 (한국외대체 M/L)
+   * - Plus Jakarta Sans: 여권 뒷면 Owner 라벨
+   */
+  --mc-font: 'Pretendard', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+  --mc-font-paper: 'Paperlogy', 'Pretendard', 'Noto Sans KR', sans-serif;
+  --mc-font-jakarta: 'Plus Jakarta Sans', 'Pretendard', sans-serif;
+  --mc-serif: 'HUFS M', 'Noto Serif KR', Georgia, 'Times New Roman', serif;
+  --mc-serif-light: 'HUFS L', 'Noto Serif KR', Georgia, 'Times New Roman', serif;
 }
