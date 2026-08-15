@@ -1,16 +1,38 @@
-# React + Vite
+# M·Carry FE
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React 19 + Vite 모바일 웹 (375×812). Mock UI.
 
-Currently, two official plugins are available:
+## 실행
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+npm install
+npm run dev
+```
 
-## React Compiler
+## 구조
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```
+src/
+  api/           # API 연동 예정
+  assets/final/  # 사용 중인 디자인 에셋
+  assets/icons/  # 예약
+  assets/images/ # 예약
+  components/    # AppShell, Modal, ProductSelect
+  data/          # mock, figmaMap
+  hooks/         # 예약
+  pages/         # main | journey | my | register | resell
+  styles/        # tokens.css
+  utils/         # 예약
+```
 
-## Expanding the ESLint configuration
+## 라우트
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+| 경로 | 화면 |
+|------|------|
+| `/` | 메인 |
+| `/journey` | 패스포트 |
+| `/journey/records/:id` | 여정 목록 |
+| `/journey/entry/:id` | 여정 상세 |
+| `/register` | 등록 플로우 |
+| `/resell` | 리셀 |
+| `/my` | 마이 |
