@@ -2,7 +2,6 @@ import { useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { AppShell } from '../../components/AppShell'
 import { Modal } from '../../components/Modal'
-import logo from '../../assets/final/logo.png'
 import stampImg from '../../assets/final/stamp.png'
 import productBag from '../../assets/final/product-bag.png'
 import ctaArrow from '../../assets/final/cta-arrow.svg'
@@ -103,7 +102,6 @@ export default function RegisterFlowPage() {
       {key === 'profile' ? (
         <div className="landing-hero">
           <div>
-            <img className="landing-brand" src={logo} alt="M·Carry" width={133} height={40} />
             <p className="landing-question">누구의 시점으로 볼까요?</p>
           </div>
           <div style={{ width: '100%' }}>

@@ -29,7 +29,7 @@ export function McHeader({
         ) : null}
       </div>
       <div className="mc-header__brand">
-        <img className="mc-header__logo" src={logo} alt="M·Carry" width={133} height={40} />
+        <img className="mc-header__logo" src={logo} alt="M·Carry" width={262} height={104} />
         {showTagline ? (
           <p className="mc-header__tagline">Carry the Moment, Share the Value</p>
         ) : null}

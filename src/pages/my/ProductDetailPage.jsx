@@ -1,13 +1,14 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { AppShell } from '../../components/AppShell'
 import chevronsRight from '../../assets/final/chevrons-right.svg'
+import diamondIcon from '../../assets/final/diamond.svg'
 import { products } from '../../data/mock'
 
 function HistoryRow({ item, onOpen }) {
   return (
     <button type="button" className="care-row" onClick={() => onOpen(item)}>
-      <span className="care-row__diamond" aria-hidden />
+      <img className="care-row__diamond" src={diamondIcon} alt="" width={15} height={15} />
       <span className="care-row__title">{item.short ?? item.title}</span>
       <span className="care-row__date">{item.date}</span>
       <span className="care-row__chevron" aria-hidden>
@@ -17,15 +18,79 @@ function HistoryRow({ item, onOpen }) {
   )
 }
 
+function genLabel(index) {
+  const n = index + 1
+  if (n === 1) return '1st'
+  if (n === 2) return '2nd'
+  if (n === 3) return '3rd'
+  return `${n}th`
+}
+
+function GenDropdown({ options, value, onChange, menuId }) {
+  const [open, setOpen] = useState(false)
+  const current = options.find((o) => o.value === value) ?? options[0]
+
+  return (
+    <div className="care-gen">
+      <button
+        type="button"
+        className="care-gen-chip"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={menuId}
+        onClick={() => setOpen((v) => !v)}
+      >
+        {current?.label ?? '전체'}
+        <span aria-hidden>▾</span>
+      </button>
+      {open ? (
+        <ul id={menuId} className="care-gen__menu" role="listbox">
+          {options.map((opt) => (
+            <li key={opt.value}>
+              <button
+                type="button"
+                role="option"
+                aria-selected={opt.value === value}
+                className={opt.value === value ? 'is-selected' : undefined}
+                onClick={() => {
+                  onChange(opt.value)
+                  setOpen(false)
+                }}
+              >
+                {opt.label}
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  )
+}
+
 export default function ProductDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const product = products.find((p) => p.id === id) ?? products[0]
   const [detail, setDetail] = useState(null)
-  const [genFilter, setGenFilter] = useState('1st')
+
+  const genOptions = useMemo(() => {
+    const gens = (product.generations ?? []).map((_, i) => {
+      const label = genLabel(i)
+      return { value: label, label }
+    })
+    return [{ value: 'all', label: '전체' }, ...gens]
+  }, [product])
+
+  const defaultGen = genOptions[1]?.value ?? 'all'
+  const [diagGen, setDiagGen] = useState(defaultGen)
+  const [careGen, setCareGen] = useState(defaultGen)
+
+  const diagnoses = product.diagnoses.filter((d) =>
+    diagGen === 'all' ? true : (d.generation ?? '1st') === diagGen,
+  )
 
   const careItems = product.careHistory.filter((c) =>
-    genFilter === 'all' ? true : c.generation?.startsWith(genFilter),
+    careGen === 'all' ? true : (c.generation ?? '1st') === careGen,
   )
 
   return (
@@ -46,20 +111,22 @@ export default function ProductDetailPage() {
         <section className="care-section">
           <div className="care-section__head">
             <h2 className="care-section__title">AI 상태 진단 이력</h2>
-            <button type="button" className="care-gen-chip" aria-label="세대 선택">
-              1st
-              <span aria-hidden>▾</span>
-            </button>
+            <GenDropdown
+              menuId="diag-gen-menu"
+              options={genOptions}
+              value={diagGen}
+              onChange={setDiagGen}
+            />
             <Link to={`/my/products/${product.id}/ai`} className="care-section__cta">
               AI 상태 진단 하러 가기
             </Link>
           </div>
 
           <div className="care-rows">
-            {product.diagnoses.length === 0 ? (
+            {diagnoses.length === 0 ? (
               <p className="hint-text">진단 이력이 없습니다.</p>
             ) : (
-              product.diagnoses.map((d) => (
+              diagnoses.map((d) => (
                 <HistoryRow key={d.id} item={d} onOpen={setDetail} />
               ))
             )}
@@ -69,14 +136,12 @@ export default function ProductDetailPage() {
         <section className="care-section">
           <div className="care-section__head">
             <h2 className="care-section__title">세대별 케어 이력</h2>
-            <button
-              type="button"
-              className="care-gen-chip"
-              onClick={() => setGenFilter((g) => (g === '1st' ? '2nd' : g === '2nd' ? 'all' : '1st'))}
-            >
-              {genFilter === 'all' ? '전체' : genFilter}
-              <span aria-hidden>▾</span>
-            </button>
+            <GenDropdown
+              menuId="care-gen-menu"
+              options={genOptions}
+              value={careGen}
+              onChange={setCareGen}
+            />
           </div>
 
           <div className="care-rows">

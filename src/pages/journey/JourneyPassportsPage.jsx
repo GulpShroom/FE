@@ -13,6 +13,7 @@ const leatherAssets = [leather1, leather2, leather3]
 const bagAssets = [bag1, bag2, bag3]
 
 function formatNameEn(name) {
+  if (!name) return ''
   const parts = name.trim().split(/\s+/)
   if (parts.length <= 2) return name
   return `${parts.slice(0, -1).join(' ')}\n${parts[parts.length - 1]}`

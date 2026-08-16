@@ -1,0 +1,80 @@
+/* Local fonts — Figma HUFS M/L + Paperlogy */
+
+@font-face {
+  font-family: 'HUFS M';
+  src:
+    local('HUFS M'),
+    local('한국외대체 M'),
+    local('HUFSM'),
+    url('../assets/fonts/HUFS-M.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: '한국외대체 M';
+  src:
+    local('HUFS M'),
+    local('한국외대체 M'),
+    url('../assets/fonts/HUFS-M.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'HUFS L';
+  src:
+    local('HUFS L'),
+    local('한국외대체 L'),
+    local('HUFSL'),
+    url('../assets/fonts/HUFS-L.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: '한국외대체 L';
+  src:
+    local('HUFS L'),
+    local('한국외대체 L'),
+    url('../assets/fonts/HUFS-L.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Paperlogy';
+  src:
+    local('Paperlogy 3 Light'),
+    local('Paperlogy-3Light'),
+    url('../assets/fonts/Paperlogy-3Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Paperlogy';
+  src:
+    local('Paperlogy 4 Regular'),
+    local('Paperlogy-4Regular'),
+    url('../assets/fonts/Paperlogy-4Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Paperlogy';
+  src:
+    local('Paperlogy 5 Medium'),
+    local('Paperlogy-5Medium'),
+    url('../assets/fonts/Paperlogy-5Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
