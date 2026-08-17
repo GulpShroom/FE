@@ -10,6 +10,9 @@ import navMy from '../assets/final/nav-my5.svg'
 export function McHeader({
   showBack = false,
   showTagline = false,
+  logoSrc = logo,
+  logoWidth = 262,
+  logoHeight = 104,
   onBack,
 }) {
   const navigate = useNavigate()
@@ -29,7 +32,13 @@ export function McHeader({
         ) : null}
       </div>
       <div className="mc-header__brand">
-        <img className="mc-header__logo" src={logo} alt="M·Carry" width={262} height={104} />
+        <img
+          className="mc-header__logo"
+          src={logoSrc}
+          alt="M·Carry"
+          width={logoWidth}
+          height={logoHeight}
+        />
         {showTagline ? (
           <p className="mc-header__tagline">Carry the Moment, Share the Value</p>
         ) : null}
@@ -75,13 +84,23 @@ export function AppShell({
   showBack = false,
   showTagline = false,
   hideHeader = false,
+  logoSrc,
+  logoWidth,
+  logoHeight,
   onBack,
 }) {
   return (
     <div className="phone-shell">
       <div className={showNav ? 'phone-shell__body' : 'phone-shell__body phone-shell__body--plain'}>
         {hideHeader ? null : (
-          <McHeader showBack={showBack} showTagline={showTagline} onBack={onBack} />
+          <McHeader
+            showBack={showBack}
+            showTagline={showTagline}
+            logoSrc={logoSrc}
+            logoWidth={logoWidth}
+            logoHeight={logoHeight}
+            onBack={onBack}
+          />
         )}
         {children}
       </div>
