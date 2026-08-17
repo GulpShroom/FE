@@ -1,34 +1,94 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { AppShell } from '../../components/AppShell'
 import { ProductSelect } from '../../components/ProductSelect'
+import { useProfile } from '../../context/ProfileContext'
+import { cacheProductJourneys, getProductJourneys, mapProductJourney } from '../../api/journeys'
 import ctaArrow from '../../assets/final/cta-arrow.svg'
 import chevronIcon from '../../assets/final/chevron.svg'
-import { journeys, mapCountries, products } from '../../data/mock'
+import { products } from '../../data/mock'
+
+const SORT_DATE = 'date'
+const SORT_COUNTRY = 'country'
 
 export default function JourneyListPage() {
   const { productId } = useParams()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const { profile } = useProfile()
   const forceEmpty = searchParams.get('empty') === '1'
 
   const product = products.find((p) => p.id === productId) ?? products[0]
-  const list = useMemo(() => {
-    if (forceEmpty) return []
-    return journeys.filter((j) => j.productId === product.id)
-  }, [product.id, forceEmpty])
-
-  const total = product.journeyCount ?? list.length
-  const [countryId, setCountryId] = useState('kr')
+  const [sort, setSort] = useState(SORT_DATE)
   const [countryOpen, setCountryOpen] = useState(false)
-  const countryLabel =
-    mapCountries.find((c) => c.id === countryId)?.label ?? '한국'
+  const [list, setList] = useState([])
+  const [total, setTotal] = useState(0)
+  const [loading, setLoading] = useState(!forceEmpty)
+  const [error, setError] = useState(null)
+
+  const countryLabel = sort === SORT_COUNTRY ? '국가순' : '날짜순'
+
+  useEffect(() => {
+    if (forceEmpty) {
+      setList([])
+      setTotal(0)
+      setLoading(false)
+      setError(null)
+      return undefined
+    }
+
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+
+    getProductJourneys(product.id, {
+      userId: profile.id,
+      sort,
+      page: 0,
+      size: 50,
+    })
+      .then((data) => {
+        if (cancelled) return
+        const rows = data?.journeys ?? []
+        setTotal(data?.totalCount ?? rows.length)
+        const mapped = rows.map((item) => mapProductJourney(item, product))
+        setList(mapped)
+        cacheProductJourneys(product.id, mapped)
+      })
+      .catch((err) => {
+        if (cancelled) return
+        setList([])
+        setTotal(0)
+        setError(err.message || '여정 목록을 불러오지 못했습니다')
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [product, profile.id, sort, forceEmpty])
+
+  const isEmpty = !loading && !error && list.length === 0
 
   const onProductChange = (id) => {
     navigate(`/journey/records/${id}${forceEmpty ? '?empty=1' : ''}`)
   }
 
-  const isEmpty = list.length === 0
+  const badgeLabel = (status) => {
+    if (status === 'transferred') return '양도됨'
+    if (status === 'linked') return '이어짐'
+    return '소유중'
+  }
+
+  const sortOptions = useMemo(
+    () => [
+      { id: SORT_DATE, label: '날짜순' },
+      { id: SORT_COUNTRY, label: '국가순' },
+    ],
+    [],
+  )
 
   return (
     <AppShell showBack>
@@ -45,7 +105,11 @@ export default function JourneyListPage() {
           variant={isEmpty ? 'outline' : 'gold'}
         />
 
-        {isEmpty ? (
+        {loading ? (
+          <p className="journeys-status">여정 목록을 불러오는 중...</p>
+        ) : error ? (
+          <p className="journeys-status journeys-status--error">{error}</p>
+        ) : isEmpty ? (
           <Link to="/journey/new" className="cta-dark cta-dark--journeys-empty">
             <span className="cta-dark__copy">
               <span className="cta-dark__sub">아직 기록된 여정이 없으신가요?</span>
@@ -67,21 +131,19 @@ export default function JourneyListPage() {
               </button>
               {countryOpen ? (
                 <div className="journey-filter__menu" role="listbox">
-                  {mapCountries
-                    .filter((c) => c.id !== 'all')
-                    .map((c) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        className={c.id === countryId ? 'is-active' : ''}
-                        onClick={() => {
-                          setCountryId(c.id)
-                          setCountryOpen(false)
-                        }}
-                      >
-                        {c.label}
-                      </button>
-                    ))}
+                  {sortOptions.map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      className={opt.id === sort ? 'is-active' : ''}
+                      onClick={() => {
+                        setSort(opt.id)
+                        setCountryOpen(false)
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
                 </div>
               ) : null}
             </div>
@@ -90,7 +152,7 @@ export default function JourneyListPage() {
               {list.map((journey) => (
                 <Link
                   key={journey.id}
-                  to={`/journey/entry/${journey.id}`}
+                  to={`/journey/entry/${journey.id}?productId=${encodeURIComponent(product.id)}`}
                   className={`journey-card${
                     journey.status === 'owned' ? ' journey-card--owned' : ' journey-card--linked'
                   }`}
@@ -112,7 +174,7 @@ export default function JourneyListPage() {
                       journey.status === 'owned' ? ' is-owned' : ' is-linked'
                     }`}
                   >
-                    {journey.status === 'owned' ? '소유중' : '이어짐'}
+                    {badgeLabel(journey.status)}
                   </span>
                 </Link>
               ))}
