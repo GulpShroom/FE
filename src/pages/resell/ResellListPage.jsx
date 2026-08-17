@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { AppShell } from '../../components/AppShell'
 import { Modal } from '../../components/Modal'
@@ -9,19 +9,14 @@ const TONES = ['감성적', '담백하게', '발랄하게']
 export default function ResellListPage() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
-  const [scope, setScope] = useState(params.get('manage') === '1' ? 'mine' : 'all')
-  const [managing, setManaging] = useState(params.get('manage') === '1')
+  const manageFromUrl = params.get('manage') === '1'
+  const [localManaging, setLocalManaging] = useState(false)
+  const managing = manageFromUrl || localManaging
+  const [scope, setScope] = useState(manageFromUrl ? 'mine' : 'all')
   const [tone, setTone] = useState('감성적')
   const [deleteId, setDeleteId] = useState(null)
   const [posts, setPosts] = useState(resellPosts)
   const [manageIndex, setManageIndex] = useState(0)
-
-  useEffect(() => {
-    if (params.get('manage') === '1') {
-      setManaging(true)
-      setScope('mine')
-    }
-  }, [params])
 
   const list = useMemo(() => {
     return posts.filter((post) => {
@@ -40,7 +35,7 @@ export default function ResellListPage() {
         showNav={false}
         showBack
         onBack={() => {
-          setManaging(false)
+          setLocalManaging(false)
           setScope('all')
           navigate('/resell', { replace: true })
         }}
@@ -152,7 +147,7 @@ export default function ResellListPage() {
             type="button"
             className="resell-head__manage"
             onClick={() => {
-              setManaging(true)
+              setLocalManaging(true)
               setScope('mine')
               setManageIndex(0)
             }}
