@@ -5,6 +5,7 @@ const ProfileContext = createContext(null)
 
 export function ProfileProvider({ children }) {
   const [profile, setProfile] = useState({
+    id: seedUser.id,
     name: seedUser.name,
     handle: seedUser.handle,
     ownedCount: seedUser.ownedCount,
