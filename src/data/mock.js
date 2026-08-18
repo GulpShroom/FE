@@ -4,6 +4,7 @@ import journeyThumb from '../assets/final/journey-thumb.png'
 import mapPanel from '../assets/final/map-panel.png'
 
 export const currentUser = {
+  id: Number(import.meta.env.VITE_USER_ID) || 1,
   name: '서강주니',
   handle: 'Kangjunlove_0502',
   ownedCount: 12,
