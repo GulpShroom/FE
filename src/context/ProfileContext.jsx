@@ -4,19 +4,45 @@ import { currentUser as seedUser } from '../data/mock'
 const ProfileContext = createContext(null)
 
 export function ProfileProvider({ children }) {
-  const [profile, setProfile] = useState({
-    id: seedUser.id,
-    name: seedUser.name,
-    handle: seedUser.handle,
-    ownedCount: seedUser.ownedCount,
-    avatarUrl: null,
+  const [profile, setProfile] = useState(() => {
+    const saved = window.sessionStorage.getItem('mcarry-profile')
+    if (saved) {
+      try {
+        return JSON.parse(saved)
+      } catch {
+        window.sessionStorage.removeItem('mcarry-profile')
+      }
+    }
+
+    return {
+      id: seedUser.id,
+      name: seedUser.name,
+      handle: seedUser.handle,
+      ownedCount: seedUser.ownedCount,
+      avatarUrl: null,
+      profileType: null,
+    }
   })
+
+  const updateProfile = (updater) => {
+    setProfile((current) => {
+      const next = typeof updater === 'function' ? updater(current) : updater
+      window.sessionStorage.setItem('mcarry-profile', JSON.stringify(next))
+      return next
+    })
+  }
 
   const value = useMemo(
     () => ({
       profile,
-      setName: (name) => setProfile((p) => ({ ...p, name })),
-      setAvatarUrl: (avatarUrl) => setProfile((p) => ({ ...p, avatarUrl })),
+      setName: (name) => updateProfile((p) => ({ ...p, name })),
+      setAvatarUrl: (avatarUrl) => updateProfile((p) => ({ ...p, avatarUrl })),
+      selectProfile: ({ userId, nickname, profileType }) => updateProfile((p) => ({
+        ...p,
+        id: userId,
+        name: nickname || p.name,
+        profileType,
+      })),
     }),
     [profile],
   )

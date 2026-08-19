@@ -51,7 +51,7 @@ export function McHeader({
 const navItems = [
   { to: '/journey', icon: navDoc, label: '여정' },
   { to: '/register', icon: navScan, label: '등록' },
-  { to: '/', icon: navHome, label: '홈', end: true },
+  { to: '/main', icon: navHome, label: '홈', end: true },
   { to: '/resell', icon: navShop, label: '리셀' },
   { to: '/my', icon: navMy, label: '마이' },
 ]
