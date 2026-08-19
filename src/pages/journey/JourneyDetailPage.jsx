@@ -2,7 +2,9 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useState } from 'react'
 import { AppShell } from '../../components/AppShell'
 import { Modal } from '../../components/Modal'
-import { journeys } from '../../data/mock'
+import { useProfile } from '../../context/ProfileContext'
+import { deleteJourney, getCachedJourney } from '../../api/journeys'
+import { journeys, products } from '../../data/mock'
 import journeyHero from '../../assets/final/journey-detail-hero.png'
 import mapPanel from '../../assets/final/map-panel.png'
 
@@ -10,25 +12,38 @@ export default function JourneyDetailPage() {
   const { id } = useParams()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const journey = journeys.find((j) => j.id === id) ?? journeys[0]
+  const { profile } = useProfile()
+  const cached = getCachedJourney(id)
+  const journey =
+    cached ||
+    journeys.find((j) => j.id === id) || {
+      id,
+      productId: searchParams.get('productId') || products[0]?.id,
+      quote: '',
+      tags: [],
+      memo: '',
+      status: 'owned',
+    }
+  const productId = searchParams.get('productId') || journey.productId || products[0]?.id
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [deletedOpen, setDeletedOpen] = useState(false)
+  const [deleteError, setDeleteError] = useState(null)
+  const [deleting, setDeleting] = useState(false)
 
   const forced = searchParams.get('view')
   const mode =
     forced === 'other' || forced === 'linked' || forced === 'owned'
       ? forced
-      : journey.status === 'owned'
+      : journey.status === 'owned' || journey.status === 'transferred'
         ? 'owned'
         : journey.status === 'linked'
           ? 'linked'
           : 'other'
 
   const canEdit = mode === 'owned' || mode === 'linked'
-  const heroSrc =
-    journey.id === 'j1' || mode === 'other' || mode === 'linked'
-      ? journeyHero
-      : journey.image
+  const heroSrc = journey.image || journeyHero
+  const recordsPath = `/journey/records/${productId}`
+  const editPath = `/journey/entry/${journey.id}/edit?productId=${encodeURIComponent(productId)}`
 
   const tagClass =
     mode === 'other'
@@ -37,13 +52,33 @@ export default function JourneyDetailPage() {
         ? 'journey-tag journey-tag--outline'
         : 'journey-tag'
 
-  const goBack = () => navigate(`/journey/records/${journey.productId}`)
+  const tags = journey.tags?.length
+    ? journey.tags
+    : [journey.activity, journey.situation, journey.style].filter(Boolean)
+
+  const goBack = () => navigate(recordsPath)
+
+  const onDelete = async () => {
+    if (deleting) return false
+    setDeleteError(null)
+    setDeleting(true)
+    try {
+      await deleteJourney(id, { userId: profile.id })
+      setDeletedOpen(true)
+    } catch (err) {
+      setDeleteError(err.message || '여정 삭제에 실패했습니다')
+      return false
+    } finally {
+      setDeleting(false)
+    }
+    return undefined
+  }
 
   return (
     <AppShell
       showBack
       showTagline={mode === 'owned'}
-      showNav={mode === 'linked'}
+      showNav={mode !== 'other'}
       onBack={goBack}
     >
       <div className={`page page--journey-detail page--journey-detail--${mode}`}>
@@ -85,7 +120,7 @@ export default function JourneyDetailPage() {
             {journey.quote}
           </p>
 
-          {journey.tags?.length ? (
+          {tags.length ? (
             <div
               className={
                 mode === 'linked'
@@ -93,7 +128,7 @@ export default function JourneyDetailPage() {
                   : 'journey-detail-card__tags'
               }
             >
-              {journey.tags.map((tag) => (
+              {tags.map((tag) => (
                 <span key={tag} className={tagClass}>
                   {tag}
                 </span>
@@ -133,14 +168,17 @@ export default function JourneyDetailPage() {
               <button
                 type="button"
                 className="journey-detail-card__btn"
-                onClick={() => navigate(`/journey/entry/${journey.id}/edit`)}
+                onClick={() => navigate(editPath)}
               >
                 수정하기
               </button>
               <button
                 type="button"
                 className="journey-detail-card__btn journey-detail-card__btn--danger"
-                onClick={() => setConfirmOpen(true)}
+                onClick={() => {
+                  setDeleteError(null)
+                  setConfirmOpen(true)
+                }}
               >
                 삭제하기
               </button>
@@ -153,14 +191,17 @@ export default function JourneyDetailPage() {
             <button
               type="button"
               className="journey-detail-linked__btn journey-detail-linked__btn--edit"
-              onClick={() => navigate(`/journey/entry/${journey.id}/edit`)}
+              onClick={() => navigate(editPath)}
             >
               수정하기
             </button>
             <button
               type="button"
               className="journey-detail-linked__btn journey-detail-linked__btn--delete"
-              onClick={() => setConfirmOpen(true)}
+              onClick={() => {
+                setDeleteError(null)
+                setConfirmOpen(true)
+              }}
             >
               삭제하기
             </button>
@@ -171,16 +212,14 @@ export default function JourneyDetailPage() {
       <Modal
         open={confirmOpen}
         title="이 여정을 삭제하시겠습니까?"
-        primaryLabel="삭제하기"
+        primaryLabel={deleting ? '삭제 중...' : '삭제하기'}
         danger
-        onPrimary={() => {
-          setConfirmOpen(false)
-          setDeletedOpen(true)
-        }}
+        onPrimary={onDelete}
         onSecondary={() => setConfirmOpen(false)}
         onClose={() => setConfirmOpen(false)}
       >
         <p>삭제된 여정은 복구할 수 없습니다.</p>
+        {deleteError ? <p className="form-error">{deleteError}</p> : null}
       </Modal>
 
       <Modal
@@ -188,8 +227,8 @@ export default function JourneyDetailPage() {
         title="여정 기록이 성공적으로 삭제되었습니다."
         primaryLabel="확인"
         hideSecondary
-        onPrimary={() => navigate(`/journey/records/${journey.productId}`)}
-        onClose={() => navigate(`/journey/records/${journey.productId}`)}
+        onPrimary={() => navigate(recordsPath)}
+        onClose={() => navigate(recordsPath)}
       />
     </AppShell>
   )
