@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AppShell } from '../../components/AppShell'
+import logoMark from '../../assets/final/logo-mark.png'
 import { products } from '../../data/mock'
 import leather1 from '../../assets/final/leather-1.png'
 import leather2 from '../../assets/final/leather-2.png'
@@ -31,12 +32,11 @@ export default function JourneyPassportsPage() {
     const onScroll = () => {
       const slides = [...el.querySelectorAll('.passport-slide')]
       if (!slides.length) return
-      const mid = el.scrollTop + el.clientHeight / 2
+      const trackTop = el.getBoundingClientRect().top + 24
       let best = 0
       let bestDist = Infinity
       slides.forEach((slide, i) => {
-        const center = slide.offsetTop + slide.offsetHeight / 2
-        const dist = Math.abs(center - mid)
+        const dist = Math.abs(slide.getBoundingClientRect().top - trackTop)
         if (dist < bestDist) {
           bestDist = dist
           best = i
@@ -58,7 +58,7 @@ export default function JourneyPassportsPage() {
   }
 
   return (
-    <AppShell showBack>
+    <AppShell showBack logoSrc={logoMark} logoWidth={989} logoHeight={279}>
       <div className="passport-page">
         <header className="passport-page__head">
           <h1 className="passport-page__title">MY PASSPORTS</h1>
@@ -71,6 +71,9 @@ export default function JourneyPassportsPage() {
               key={product.id}
               type="button"
               className={`passport-slide${active === index ? ' is-active' : ''}`}
+              style={{
+                zIndex: active === index ? 40 : products.length - index,
+              }}
               onClick={() => navigate(`/journey/records/${product.id}`)}
             >
               <article

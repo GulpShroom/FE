@@ -32,8 +32,9 @@ export function Modal({
           <button
             type="button"
             className={danger ? 'danger' : 'primary'}
-            onClick={() => {
-              onPrimary?.()
+            onClick={async () => {
+              const result = await onPrimary?.()
+              if (result === false) return
               onClose?.()
             }}
           >

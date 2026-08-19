@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import chevronIcon from '../assets/final/chevron.svg'
 
-export function ProductSelect({ products, value, onChange, variant = 'outline' }) {
+export function ProductSelect({ products, value, onChange, variant = 'outline', disabled = false }) {
   const [open, setOpen] = useState(false)
   const selected = products.find((p) => p.id === value) ?? products[0]
 
@@ -11,8 +11,12 @@ export function ProductSelect({ products, value, onChange, variant = 'outline' }
       <button
         type="button"
         className={`product-select product-select--${variant}`}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          if (disabled) return
+          setOpen((v) => !v)
+        }}
         aria-expanded={open}
+        disabled={disabled}
       >
         <span className="product-select__text">
           <span className="product-select__alias">{selected?.alias}</span>
