@@ -1,23 +1,37 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { AppShell } from '../../components/AppShell'
+import { EmptyProductState } from '../../components/EmptyProductState'
 import { ProductSelect } from '../../components/ProductSelect'
 import { useProfile } from '../../context/ProfileContext'
+import { isNotFoundError, sameProductId } from '../../api/client'
+import { uploadFile } from '../../api/files'
 import {
+  analyzeJourney,
+  applyAnalyzeToForm,
   buildCreateJourneyBody,
   buildUpdateJourneyBody,
   cityToUi,
   countryToUi,
   createJourney,
   getCachedJourney,
+  getJourney,
+  mapJourneyDetail,
   monthToUi,
   updateJourney,
 } from '../../api/journeys'
-import { journeys, products } from '../../data/mock'
+import { getUserProducts, mapUserProduct } from '../../api/products'
+import { journeys } from '../../data/mock'
 import addPhotoIcon from '../../assets/final/form-add-photo.svg'
 import replayIcon from '../../assets/final/form-replay.svg'
 import chevronIcon from '../../assets/final/form-chevron.png'
 import logo from '../../assets/final/logo.png'
+
+function pickUploadedUrl(uploaded) {
+  if (!uploaded) return ''
+  if (typeof uploaded === 'string') return uploaded
+  return uploaded.url || uploaded.fileUrl || uploaded.photoUrl || ''
+}
 
 const TONES = ['감성적', '담백하게', '발랄하게']
 const YEARS = Array.from({ length: 10 }, (_, i) => String(2026 - i))
@@ -101,8 +115,9 @@ function seedForm(existing, fallbackProductId) {
     situation: existing?.situation || '시상식',
     style: existing?.style || '댄디',
     tagSources: existing?.tagSources ?? { ...DEFAULT_TAG_SOURCES },
-    photoName: '',
-    photoUrl: '',
+    photoName: existing?.photoName || (existing?.photoUrl || existing?.image ? '현재 사진' : ''),
+    photoUrl: existing?.photoUrl || '',
+    photoPreview: existing?.photoPreview || existing?.photoUrl || existing?.image || '',
   }
 }
 
@@ -117,18 +132,117 @@ export default function JourneyFormPage() {
     return getCachedJourney(id) ?? journeys.find((j) => j.id === id) ?? null
   }, [id, isEdit])
 
-  const fallbackProductId =
-    existing?.productId || searchParams.get('productId') || products[0]?.id || ''
+  const queryProductId = searchParams.get('productId') || ''
+  const seedProductId = existing?.productId || queryProductId || ''
 
+  const [catalog, setCatalog] = useState([])
+  const [productsLoaded, setProductsLoaded] = useState(false)
+  const [productsError, setProductsError] = useState(null)
   const [successOpen, setSuccessOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [analyzing, setAnalyzing] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [error, setError] = useState(null)
-  const [form, setForm] = useState(() => seedForm(existing, fallbackProductId))
-  const [initial] = useState(form)
+  const [form, setForm] = useState(() => seedForm(existing, seedProductId))
+  const [initial, setInitial] = useState(form)
+  const photoFileRef = useRef(null)
+  const photoInputRef = useRef(null)
+  const photoUrlRef = useRef(form.photoUrl || '')
+  const previewUrlRef = useRef('')
 
-  const product = products.find((p) => p.id === form.productId) ?? products[0]
+  useEffect(() => {
+    let cancelled = false
+    getUserProducts(profile.id, { status: 'owning' })
+      .then((data) => {
+        if (cancelled) return
+        setCatalog((data?.products ?? []).map(mapUserProduct))
+        setProductsError(null)
+        setProductsLoaded(true)
+      })
+      .catch((err) => {
+        if (cancelled) return
+        if (isNotFoundError(err)) {
+          setCatalog([])
+          setProductsError(null)
+        } else {
+          setCatalog([])
+          setProductsError(err.message || '보유 제품을 불러오지 못했습니다')
+        }
+        setProductsLoaded(true)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [profile.id])
+
+  useEffect(() => {
+    if (!isEdit || !id) return undefined
+    let cancelled = false
+    getJourney(id, { userId: profile.id })
+      .then((data) => {
+        if (cancelled || !data) return
+        const mapped = mapJourneyDetail(data, { productId: seedProductId || queryProductId })
+        const photoUrl = data.photoUrl || ''
+        const next = seedForm(
+          {
+            ...mapped,
+            photoUrl,
+            image: photoUrl,
+            photoName: photoUrl ? '현재 사진' : '',
+          },
+          seedProductId || queryProductId || mapped.productId,
+        )
+        setForm(next)
+        setInitial(next)
+        photoUrlRef.current = next.photoUrl || ''
+      })
+      .catch(() => {
+        // keep cached seed
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [isEdit, id, profile.id, seedProductId, queryProductId])
+
+  const productOptions = useMemo(() => {
+    if (
+      isEdit &&
+      existing?.productId &&
+      !catalog.some((p) => sameProductId(p.id, existing.productId))
+    ) {
+      return [
+        {
+          id: String(existing.productId),
+          alias: existing.alias || '내 제품',
+          name: existing.name || existing.productName || '',
+          nameEn: existing.name || existing.productName || '',
+        },
+        ...catalog,
+      ]
+    }
+    return catalog
+  }, [catalog, existing, isEdit])
+
+  useEffect(() => {
+    if (!productsLoaded || productOptions.length === 0) return
+    const matched = productOptions.some((p) => sameProductId(p.id, form.productId))
+    if (!matched) {
+      setForm((f) => ({ ...f, productId: productOptions[0].id }))
+    }
+  }, [productsLoaded, productOptions, form.productId])
+
+  const product =
+    productOptions.find((p) => sameProductId(p.id, form.productId)) ?? productOptions[0] ?? null
   const cityOptions = withTag(CITIES[form.country] ?? CITIES['한국'], form.city)
   const yearOptions = withTag(YEARS, form.year)
+  const recordsPath = `/journey/records/${form.productId || seedProductId || productOptions[0]?.id || ''}`
+  const hasNoProducts = productsLoaded && !productsError && catalog.length === 0 && !isEdit
+
+  useEffect(() => {
+    return () => {
+      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current)
+    }
+  }, [])
 
   const setField = (key, value) => setForm((f) => ({ ...f, [key]: value }))
 
@@ -148,35 +262,106 @@ export default function JourneyFormPage() {
     }))
   }
 
+  const runAnalyze = async ({ file, tone, productId } = {}) => {
+    const photo = file || photoFileRef.current
+    if (!photo) {
+      setError('AI 큐레이터를 쓰려면 먼저 사진을 업로드해 주세요.')
+      return
+    }
+    setAnalyzing(true)
+    try {
+      const data = await analyzeJourney({
+        productId: productId || form.productId,
+        userId: profile.id,
+        tone: tone || form.tone,
+        photo,
+      })
+      setForm((f) => applyAnalyzeToForm(f, data))
+    } catch {
+      // 사진 업로드/저장과 분리 — analyze 실패해도 photoUrl 유지, 안내는 띄우지 않음
+    } finally {
+      setAnalyzing(false)
+    }
+  }
+
   const onReplay = () => {
+    if (photoFileRef.current) {
+      void runAnalyze()
+      return
+    }
     setField('quote', QUOTE_SAMPLES[form.tone] ?? form.quote)
   }
 
-  const onPhoto = (e) => {
-    const file = e.target.files?.[0]
+  const onPhoto = async (e) => {
+    const input = e.target
+    const file = input.files?.[0]
     if (!file) return
+
+    photoFileRef.current = file
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current)
+    const localPreview = URL.createObjectURL(file)
+    previewUrlRef.current = localPreview
+    photoUrlRef.current = ''
+
+    setUploading(true)
+    setError(null)
     setForm((f) => ({
       ...f,
       photoName: file.name,
-      photoUrl: import.meta.env.VITE_JOURNEY_PHOTO_URL || f.photoUrl,
+      photoUrl: '',
+      photoPreview: localPreview,
     }))
+
+    try {
+      const uploaded = await uploadFile(file)
+      const photoUrl = pickUploadedUrl(uploaded)
+      if (!photoUrl) {
+        throw new Error('업로드 응답에 사진 URL이 없습니다.')
+      }
+      photoUrlRef.current = photoUrl
+      setForm((f) => ({
+        ...f,
+        photoName: file.name,
+        photoUrl,
+        photoPreview: localPreview,
+      }))
+      setUploading(false)
+      // analyze는 저장을 막지 않도록 백그라운드 실행
+      void runAnalyze({ file, tone: form.tone, productId: form.productId })
+    } catch (err) {
+      photoUrlRef.current = ''
+      setError(err.message || '사진 업로드에 실패했습니다')
+      setUploading(false)
+    } finally {
+      // 같은 파일 재선택 가능하도록 초기화
+      input.value = ''
+    }
   }
 
   const goBack = () => {
     if (isEdit) {
       navigate(
-        `/journey/entry/${id}?productId=${encodeURIComponent(form.productId || fallbackProductId)}`,
+        `/journey/entry/${id}?productId=${encodeURIComponent(form.productId || seedProductId)}`,
       )
       return
     }
-    navigate(`/journey/records/${form.productId || products[0]?.id}`)
+    navigate(recordsPath || '/journey')
   }
 
   const onSave = async () => {
     if (saving) return
+    if (!form.productId) {
+      setError('저장할 제품을 선택해 주세요.')
+      return
+    }
+    if (uploading) {
+      setError('사진 업로드가 끝날 때까지 기다려 주세요.')
+      return
+    }
     setError(null)
 
-    const photoUrl = form.photoUrl || import.meta.env.VITE_JOURNEY_PHOTO_URL
+    const photoUrl =
+      photoUrlRef.current || form.photoUrl || import.meta.env.VITE_JOURNEY_PHOTO_URL
     if (!isEdit && !photoUrl) {
       setError('사진을 업로드해 주세요. 저장에는 사진 URL이 필요합니다.')
       return
@@ -185,7 +370,14 @@ export default function JourneyFormPage() {
     setSaving(true)
     try {
       if (isEdit) {
-        await updateJourney(id, buildUpdateJourneyBody({ ...form }, initial, { userId: profile.id }))
+        await updateJourney(
+          id,
+          buildUpdateJourneyBody(
+            { ...form },
+            initial,
+            { userId: profile.id, photoUrl: photoUrlRef.current || form.photoUrl },
+          ),
+        )
       } else {
         await createJourney(
           buildCreateJourneyBody({ ...form }, { userId: profile.id, photoUrl }),
@@ -199,34 +391,79 @@ export default function JourneyFormPage() {
     }
   }
 
+  if (!productsLoaded) {
+    return (
+      <AppShell showBack showNav={false} onBack={goBack}>
+        <div className="page page--journey-form">
+          <p className="journeys-status">보유 제품을 불러오는 중...</p>
+        </div>
+      </AppShell>
+    )
+  }
+
+  if (hasNoProducts) {
+    return (
+      <AppShell showBack showNav={false} onBack={() => navigate('/journey')}>
+        <EmptyProductState />
+      </AppShell>
+    )
+  }
+
+  if (productsError) {
+    return (
+      <AppShell showBack showNav={false} onBack={goBack}>
+        <div className="page page--journey-form">
+          <p className="journeys-status journeys-status--error">{productsError}</p>
+        </div>
+      </AppShell>
+    )
+  }
+
   return (
     <AppShell showBack showNav={false} onBack={goBack}>
       <div className="page page--journey-form">
         <ProductSelect
-          products={products}
+          products={productOptions}
           value={form.productId}
           onChange={(pid) => setField('productId', pid)}
           variant="outline"
           disabled={isEdit}
         />
 
-        {isEdit ? (
-          <p className="form-hint">
-            사진은 이 화면에서 바꿀 수 없습니다. 바꾸려면 삭제 후 다시 저장해 주세요.
-          </p>
-        ) : (
-          <label className="photo-upload">
-            <input type="file" accept="image/*" onChange={onPhoto} />
-            {form.photoName ? (
-              <p className="photo-upload__name">{form.photoName}</p>
-            ) : (
-              <>
-                <img src={addPhotoIcon} alt="" width={30} height={30} />
-                <span>사진 업로드 하기</span>
-              </>
-            )}
-          </label>
-        )}
+        <label
+          className={`photo-upload${form.photoPreview || form.photoUrl ? ' photo-upload--filled' : ''}`}
+        >
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/*"
+            onChange={onPhoto}
+            disabled={uploading}
+          />
+          {form.photoPreview || form.photoUrl ? (
+            <>
+              <img
+                className="photo-upload__preview"
+                src={form.photoPreview || form.photoUrl}
+                alt=""
+              />
+              <p className="photo-upload__name">
+                {uploading
+                  ? '업로드 중…'
+                  : analyzing
+                    ? 'AI 분석 중…'
+                    : form.photoUrl
+                      ? form.photoName || (isEdit ? '사진 변경하기' : '사진이 준비됐어요')
+                      : form.photoName || '사진 선택됨'}
+              </p>
+            </>
+          ) : (
+            <>
+              <img src={addPhotoIcon} alt="" width={30} height={30} />
+              <span>{isEdit ? '사진 변경하기' : '사진 업로드 하기'}</span>
+            </>
+          )}
+        </label>
 
         <div className="quote-block">
           <div className="tone-row">
@@ -249,7 +486,13 @@ export default function JourneyFormPage() {
               onChange={(e) => setField('quote', e.target.value)}
               aria-label="한 줄 기록"
             />
-            <button type="button" className="quote-field__replay" onClick={onReplay} aria-label="다시 생성">
+            <button
+              type="button"
+              className="quote-field__replay"
+              onClick={onReplay}
+              disabled={analyzing}
+              aria-label="AI 여정 큐레이터 다시 생성"
+            >
               <img src={replayIcon} alt="" width={15} height={15} />
             </button>
           </div>
@@ -358,7 +601,7 @@ export default function JourneyFormPage() {
             <button
               type="button"
               className="btn-modal-pill"
-              onClick={() => navigate(`/journey/records/${form.productId || products[0]?.id}`)}
+              onClick={() => navigate(recordsPath)}
             >
               닫기
             </button>

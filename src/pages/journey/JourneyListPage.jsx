@@ -1,24 +1,30 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { AppShell } from '../../components/AppShell'
+import { EmptyProductState } from '../../components/EmptyProductState'
 import { ProductSelect } from '../../components/ProductSelect'
 import { useProfile } from '../../context/ProfileContext'
+import { isNotFoundError, sameProductId } from '../../api/client'
 import { cacheProductJourneys, getProductJourneys, mapProductJourney } from '../../api/journeys'
+import { getUserProducts, mapUserProduct } from '../../api/products'
 import ctaArrow from '../../assets/final/cta-arrow.svg'
 import chevronIcon from '../../assets/final/chevron.svg'
-import { products } from '../../data/mock'
+import { products as mockProducts } from '../../data/mock'
 
 const SORT_DATE = 'date'
 const SORT_COUNTRY = 'country'
 
 export default function JourneyListPage() {
-  const { productId } = useParams()
+  const { productId: routeProductId } = useParams()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { profile } = useProfile()
   const forceEmpty = searchParams.get('empty') === '1'
 
-  const product = products.find((p) => p.id === productId) ?? products[0]
+  const [apiProducts, setApiProducts] = useState([])
+  const [productsError, setProductsError] = useState(null)
+  const [productsLoadedKey, setProductsLoadedKey] = useState(null)
+
   const [sort, setSort] = useState(SORT_DATE)
   const [countryOpen, setCountryOpen] = useState(false)
   const [list, setList] = useState([])
@@ -26,12 +32,57 @@ export default function JourneyListPage() {
   const [error, setError] = useState(null)
   const [loadedKey, setLoadedKey] = useState(null)
 
-  const fetchKey = `${product.id}:${profile.id}:${sort}`
+  const productsKey = `products:${profile.id}`
+  const productsLoading = forceEmpty ? false : productsLoadedKey !== productsKey
 
+  useEffect(() => {
+    if (forceEmpty) return undefined
+
+    let cancelled = false
+
+    getUserProducts(profile.id)
+      .then((data) => {
+        if (cancelled) return
+        const rows = data?.products ?? []
+        setApiProducts(rows.map((item) => mapUserProduct(item)))
+        setProductsError(null)
+        setProductsLoadedKey(productsKey)
+      })
+      .catch((err) => {
+        if (cancelled) return
+        if (isNotFoundError(err)) {
+          setApiProducts([])
+          setProductsError(null)
+        } else {
+          setApiProducts([])
+          setProductsError(err)
+        }
+        setProductsLoadedKey(productsKey)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [profile.id, forceEmpty, productsKey])
+
+  const catalog = useMemo(() => {
+    if (forceEmpty) return mockProducts
+    return apiProducts
+  }, [forceEmpty, apiProducts])
+
+  const hasNoProducts =
+    !forceEmpty && !productsLoading && !productsError && apiProducts.length === 0
+
+  const product = useMemo(
+    () => catalog.find((p) => sameProductId(p.id, routeProductId)) ?? catalog[0],
+    [catalog, routeProductId],
+  )
+  const fetchKey = `${product?.id ?? 'none'}:${profile.id}:${sort}`
   const countryLabel = sort === SORT_COUNTRY ? '국가순' : '날짜순'
 
   useEffect(() => {
     if (forceEmpty) return undefined
+    if (productsLoading || productsError || hasNoProducts || !product) return undefined
 
     let cancelled = false
 
@@ -44,8 +95,11 @@ export default function JourneyListPage() {
       .then((data) => {
         if (cancelled) return
         const rows = data?.journeys ?? []
-        setTotal(data?.totalCount ?? rows.length)
-        const mapped = rows.map((item) => mapProductJourney(item, product))
+        // 현재 키퍼(소유중)가 등록한 여정만 표시 — 타 세대/양도 기록 제외
+        const mapped = rows
+          .filter((item) => (item.ownershipStatus || 'owning') === 'owning')
+          .map((item) => mapProductJourney(item, product))
+        setTotal(mapped.length)
         setList(mapped)
         cacheProductJourneys(product.id, mapped)
         setError(null)
@@ -55,21 +109,46 @@ export default function JourneyListPage() {
         if (cancelled) return
         setList([])
         setTotal(0)
-        setError(err.message || '여정 목록을 불러오지 못했습니다')
+        if (isNotFoundError(err)) {
+          setError(null)
+        } else {
+          setError(err.message || '여정 목록을 불러오지 못했습니다')
+        }
         setLoadedKey(fetchKey)
       })
 
     return () => {
       cancelled = true
     }
-  }, [product, profile.id, sort, forceEmpty, fetchKey])
+  }, [
+    product,
+    profile.id,
+    sort,
+    forceEmpty,
+    fetchKey,
+    productsLoading,
+    productsError,
+    hasNoProducts,
+  ])
 
   const displayList = forceEmpty ? [] : list
   const displayTotal = forceEmpty ? 0 : total
-  const displayLoading = forceEmpty ? false : loadedKey !== fetchKey
-  const displayError = forceEmpty ? null : error
+  const displayLoading =
+    !forceEmpty &&
+    !productsError &&
+    !hasNoProducts &&
+    (productsLoading || loadedKey !== fetchKey)
+  const displayError = forceEmpty
+    ? null
+    : productsError
+      ? productsError.message || '제품 목록을 불러오지 못했습니다'
+      : error
 
   const isEmpty = !displayLoading && !displayError && displayList.length === 0
+
+  const newJourneyPath = product
+    ? `/journey/new?productId=${encodeURIComponent(product.id)}`
+    : '/journey/new'
 
   const onProductChange = (id) => {
     navigate(`/journey/records/${id}${forceEmpty ? '?empty=1' : ''}`)
@@ -89,8 +168,16 @@ export default function JourneyListPage() {
     [],
   )
 
+  if (hasNoProducts) {
+    return (
+      <AppShell hideHeader>
+        <EmptyProductState />
+      </AppShell>
+    )
+  }
+
   return (
-    <AppShell showBack>
+    <AppShell showBack onBack={() => navigate('/journey')}>
       <div className={`page page--journeys${isEmpty ? ' page--journeys-empty' : ''}`}>
         <header className="journeys-head">
           <h1 className="journeys-head__title">MY JOURNEYS</h1>
@@ -98,8 +185,8 @@ export default function JourneyListPage() {
         </header>
 
         <ProductSelect
-          products={products}
-          value={product.id}
+          products={catalog}
+          value={product?.id}
           onChange={onProductChange}
           variant={isEmpty ? 'outline' : 'gold'}
         />
@@ -109,7 +196,7 @@ export default function JourneyListPage() {
         ) : displayError ? (
           <p className="journeys-status journeys-status--error">{displayError}</p>
         ) : isEmpty ? (
-          <Link to="/journey/new" className="cta-dark cta-dark--journeys-empty">
+          <Link to={newJourneyPath} className="cta-dark cta-dark--journeys-empty">
             <span className="cta-dark__copy">
               <span className="cta-dark__sub">아직 기록된 여정이 없으신가요?</span>
               <span className="cta-dark__title">여정 등록하러 가기</span>
@@ -179,7 +266,7 @@ export default function JourneyListPage() {
               ))}
             </div>
 
-            <Link to="/journey/new" className="btn-journeys-add">
+            <Link to={newJourneyPath} className="btn-journeys-add">
               + 여정 기록하기
             </Link>
           </>

@@ -30,6 +30,7 @@ export function ProfileProvider({ children }) {
     }
 
     return defaultProfile
+
   })
 
   const updateProfile = (updater) => {

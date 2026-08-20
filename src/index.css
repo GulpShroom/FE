@@ -823,13 +823,22 @@ img {
 .passport-leather__copy {
   position: relative;
   z-index: 1;
+  min-width: 0;
 }
 
 .passport-slide:not(.is-active) .passport-leather__copy {
   position: absolute;
   left: 16px;
   top: 228px;
-  width: 124px;
+  /* 비활성(겹친) 카드: 오른쪽 사진과 겹치지 않는 폭만 사용 */
+  width: min(148px, calc(100% - 32px));
+  max-width: min(148px, calc(100% - 32px));
+}
+
+.passport-slide.is-active .passport-leather__copy {
+  /* 활성 카드: 상단 전체 폭 사용, 넘칠 때만 … */
+  width: 100%;
+  max-width: 100%;
 }
 
 .passport-leather__index {
@@ -838,6 +847,10 @@ img {
   font-size: 20px;
   font-weight: 400;
   line-height: normal;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .passport-leather__index span {
@@ -850,8 +863,11 @@ img {
   font-family: var(--mc-font-paper);
   font-size: 20px;
   letter-spacing: 0;
-  white-space: pre-line;
   line-height: normal;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .passport-leather__serial {
@@ -1865,9 +1881,13 @@ img {
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  padding: 8px 0 16px;
+  width: 100%;
+  max-width: 335px;
+  margin: 0 auto;
+  padding: 0 0 12px;
   font-family: var(--mc-serif);
   font-weight: 400;
+  box-sizing: border-box;
 }
 
 .journey-detail-linked__photo {
@@ -1893,14 +1913,25 @@ img {
   color: var(--mc-ink);
   line-height: normal;
   text-align: left;
+  word-break: keep-all;
+}
+
+.journey-detail-linked__quote.is-empty,
+.journey-detail-card__quote.is-empty,
+.journey-tag.is-empty,
+.journey-detail-linked__memo-box p.is-empty,
+.journey-detail-card__memo-box p.is-empty {
+  opacity: 0.55;
+  font-style: normal;
 }
 
 .journey-detail-linked__tags {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 4px;
   justify-content: center;
   width: 100%;
+  margin-top: 0;
 }
 
 .journey-detail-linked__memo {
@@ -1908,6 +1939,7 @@ img {
   display: flex;
   flex-direction: column;
   gap: 5px;
+  margin-top: 0;
 }
 
 .journey-detail-linked__memo-label {
@@ -1921,7 +1953,8 @@ img {
 
 .journey-detail-linked__memo-box {
   width: 100%;
-  height: 93px;
+  min-height: 93px;
+  height: auto;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1929,33 +1962,35 @@ img {
   background: #f8e8c3;
   border-radius: 8px;
   font-family: var(--mc-font-paper);
-  font-size: 13px;
-  font-weight: 400;
-  line-height: normal;
-  color: var(--mc-ink);
   box-sizing: border-box;
 }
 
 .journey-detail-linked__memo-box p {
   margin: 0;
+  font-size: 13px;
+  color: #262626;
+  text-align: center;
+  word-break: keep-all;
 }
 
 .journey-detail-linked__actions {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 4px;
   width: 100%;
-  margin-top: 8px;
+  max-width: 335px;
+  margin: 16px auto 24px;
+  padding: 0;
   box-sizing: border-box;
 }
 
 .journey-detail-linked__btn,
 .journey-detail-linked__btn--edit,
 .journey-detail-linked__btn--delete {
-  flex: none;
   width: 142px;
   height: 40px;
+  border: 0;
   border-radius: 30px;
   background: #262626;
   color: #fff;
@@ -1964,6 +1999,17 @@ img {
   font-weight: 400;
   letter-spacing: -0.16px;
   line-height: 1.2;
+  cursor: pointer;
+}
+
+.page--journey-detail--linked {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 20px 28px;
+  background: #fff;
+  min-height: 100%;
+  box-sizing: border-box;
 }
 
 /* Journey form — Figma 1043:3231 */
@@ -2027,6 +2073,12 @@ img {
   background: rgba(229, 229, 229, 0.5);
   box-sizing: border-box;
   cursor: pointer;
+  overflow: hidden;
+}
+
+.photo-upload--filled {
+  padding: 12px;
+  gap: 8px;
 }
 
 .photo-upload input {
@@ -2039,12 +2091,22 @@ img {
   object-fit: contain;
 }
 
+.photo-upload__preview {
+  width: 100% !important;
+  height: 160px !important;
+  object-fit: cover !important;
+  border-radius: 8px;
+  display: block;
+}
+
 .photo-upload span,
 .photo-upload__name {
   margin: 0;
   font-family: var(--mc-serif);
   font-size: 14px;
   color: var(--mc-ink-60);
+  text-align: center;
+  word-break: break-all;
 }
 
 .quote-block {
@@ -2222,6 +2284,25 @@ img {
 
 .memo-field textarea::placeholder {
   color: var(--mc-ink);
+}
+
+.btn-form-save {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 69px;
+  margin-top: 8px;
+  border: 0;
+  border-radius: 30px;
+  background: #262626;
+  color: #fff;
+  font-family: var(--mc-serif);
+  font-size: 20px;
+  font-weight: 400;
+  letter-spacing: -0.2px;
+  line-height: 1.2;
+  cursor: pointer;
 }
 
 .btn-form-save:disabled {
@@ -2679,13 +2760,15 @@ img {
   align-items: center;
   justify-content: center;
   gap: 0;
-  width: 90px;
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
   min-height: 64px;
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.8);
   color: #262626;
   box-sizing: border-box;
-  padding: 8px 20px;
+  padding: 8px 6px;
 }
 
 .passport-back__metric strong {
@@ -2696,11 +2779,12 @@ img {
 }
 
 .passport-back__metric span {
-  font-size: 11px;
-  line-height: 24px;
+  font-size: 9px;
+  line-height: 1.2;
   opacity: 1;
   color: var(--mc-metric-muted);
   font-family: var(--mc-serif-light);
+  white-space: nowrap;
 }
 
 .passport-back__panels {
@@ -2731,11 +2815,88 @@ img {
   font-weight: 400;
 }
 
+.passport-back__panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+
+.passport-back__panel-edit {
+  border: 0;
+  background: transparent;
+  color: rgba(255, 246, 178, 0.95);
+  font-size: 12px;
+  line-height: 16px;
+  font-family: var(--mc-serif-light);
+  cursor: pointer;
+  padding: 0;
+}
+
+.passport-back__care-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  position: relative;
+  z-index: 3;
+  pointer-events: auto;
+}
+
+.passport-back__care-form textarea {
+  width: 100%;
+  min-height: 64px;
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  resize: none;
+  box-sizing: border-box;
+  font-size: 12px;
+  line-height: 1.4;
+  font-family: var(--mc-font-paper);
+  color: #1a2b21;
+  background: rgba(255, 255, 255, 0.92);
+  pointer-events: auto;
+}
+
+.passport-back__care-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 11px;
+}
+
+.passport-back__care-actions button {
+  border: 0;
+  border-radius: 999px;
+  padding: 4px 12px;
+  background: #ffd788;
+  color: #1a2b21;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: var(--mc-serif);
+}
+
+.passport-back__care-actions button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.passport-back__care-error {
+  margin: 0;
+  font-size: 11px;
+  color: #fecaca;
+}
+
 .passport-back__panel {
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 44px;
+  height: auto;
   border-radius: 10px;
   background: var(--mc-panel-cream);
   padding: 10px 17px;
@@ -2746,11 +2907,13 @@ img {
 
 .passport-back__panel-text {
   margin: 0;
+  width: 100%;
   font-size: 13px;
   line-height: 24px;
   color: #262626;
   word-break: keep-all;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
   font-family: var(--mc-serif-light);
   font-weight: 400;
 }
@@ -3374,6 +3537,68 @@ img {
   font-weight: 300;
 }
 
+.care-compose {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.care-compose__label {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: #1a302b;
+  font-family: var(--mc-serif);
+  font-weight: 400;
+}
+
+.care-compose textarea {
+  width: 100%;
+  min-height: 88px;
+  padding: 12px 14px;
+  border: 1px solid var(--mc-green);
+  border-radius: 10px;
+  background: #fff;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #1a2b21;
+  resize: vertical;
+  box-sizing: border-box;
+  font-family: var(--mc-font-paper);
+}
+
+.care-compose__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.care-compose__count {
+  font-size: 12px;
+  line-height: 16px;
+  color: rgba(38, 38, 38, 0.5);
+  font-family: var(--mc-serif-light);
+}
+
+.care-compose__error {
+  margin: 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: #b91c1c;
+}
+
+button.care-section__cta {
+  border: 0;
+  cursor: pointer;
+}
+
+button.care-section__cta:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
 /* AI diagnosis — Figma 1041:978 */
 .page--ai {
   display: flex;
@@ -3549,6 +3774,40 @@ img {
   margin: 0;
   font-size: 28px;
   color: #262626;
+}
+
+.ai-result__card--filled {
+  align-items: flex-start;
+  justify-content: flex-start;
+  text-align: left;
+  gap: 12px;
+}
+
+.ai-result__text {
+  margin: 0;
+  white-space: pre-wrap;
+  color: #1a2b21;
+  font-family: var(--mc-font-paper);
+}
+
+.ai-result__solution {
+  margin: 0;
+  font-size: 14px;
+  line-height: 22.75px;
+  color: #374151;
+  white-space: pre-wrap;
+  font-family: var(--mc-font-paper);
+}
+
+.ai-result__error {
+  margin: 0;
+  color: #b91c1c;
+  white-space: pre-wrap;
+}
+
+a.ai-repair-cta {
+  text-decoration: none;
+  box-sizing: border-box;
 }
 
 @keyframes ai-spin {
