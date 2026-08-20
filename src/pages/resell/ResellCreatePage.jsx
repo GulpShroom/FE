@@ -16,7 +16,12 @@ import { resellProductDummies } from '../../data/resellDummies'
 import { createResell, uploadResellPhoto } from '../../api/resells'
 import { saveResellLetterDraft } from '../../api/resellLetterDraft'
 import { getMyProducts, getProductSummary } from '../../api/dashboard'
-import { getProductJourneys, mapProductJourney } from '../../api/journeys'
+import {
+  getJourney,
+  getProductJourneys,
+  mapJourneyDetail,
+  mapProductJourney,
+} from '../../api/journeys'
 import { useProfile } from '../../context/ProfileContext'
 import { createCareTip, createLetterDraft, getProductDiagnoses } from '../../api/my'
 
@@ -56,23 +61,34 @@ const CONDITIONS = [
 const AI_LETTER =
   '안녕하세요. 이 가방과 함께한 시간들이 따뜻했습니다. 다음 주인님께도 좋은 여정이 이어지길 바랍니다.'
 
-const SHARE_JOURNEYS = [
-  {
-    title: '첫 세탁의 기억',
-    body: '처음으로 드라이클리닝을 맡겼을 때의 조심스러움. 원단이 상하지 않게 신경 썼던 기억이 납니다.',
-    situations: ['사과', '바나나', '포도'],
-  },
-  {
-    title: '특별한 날의 착용',
-    body: '친한 친구의 결혼식 날 착용했던 특별한 기억. 좋은 자리에 함께했던 옷입니다.',
-    situations: ['결혼식', '친구', '기념일'],
-  },
-  {
-    title: '단추 수선 완료',
-    body: '떨어질 뻔한 단추를 비슷한 색상의 실로 튼튼하게 다시 달았습니다.',
-    situations: ['단추', '수선', '관리'],
-  },
-]
+const SHARE_TAG_LABELS = {
+  situation: '상황',
+  activity: '활동',
+  style: '스타일',
+}
+
+function buildShareJourney(detail, productId, index) {
+  const journey = mapJourneyDetail(detail, { productId })
+  const modifiedTags = Object.entries(SHARE_TAG_LABELS).flatMap(([type, label]) => {
+    const value = journey[type]
+    return value && journey.tagSources?.[type] === 'free_text'
+      ? [{ type, label, value }]
+      : []
+  })
+
+  return {
+    id: String(detail.journeyId),
+    title:
+      [journey.city, journey.journeyYear].filter(Boolean).join(' · ') ||
+      `여정 기록 ${index + 1}`,
+    body: journey.quote || '작성된 회고가 없습니다.',
+    modifiedTags,
+  }
+}
+
+function shareTagKey(journeyId, tag) {
+  return `${journeyId}:${tag.type}`
+}
 
 function formatDiagnosisDate(value) {
   if (!value) return '-'
@@ -113,11 +129,15 @@ export default function ResellCreatePage() {
   const [careTipSubmitting, setCareTipSubmitting] = useState(false)
   const [careTipError, setCareTipError] = useState('')
   const [shareSelections, setShareSelections] = useState(
-    location.state?.resellShareSelections ?? [0],
+    (location.state?.resellShareSelections ?? []).map(String),
   )
   const [situationSelections, setSituationSelections] = useState(
-    location.state?.resellSituationSelections ?? [],
+    (location.state?.resellSituationSelections ?? []).map(String),
   )
+  const [shareJourneyOptions, setShareJourneyOptions] = useState([])
+  const [shareJourneysLoading, setShareJourneysLoading] = useState(false)
+  const [shareJourneysError, setShareJourneysError] = useState('')
+  const [shareJourneysReloadKey, setShareJourneysReloadKey] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
   const [ownedProducts, setOwnedProducts] = useState([])
@@ -226,6 +246,75 @@ export default function ResellCreatePage() {
       cancelled = true
     }
   }, [location.state?.resellProductId, searchParams, sellerId])
+
+  useEffect(() => {
+    if (productsLoading || !product?.id || !sellerId) return undefined
+
+    let cancelled = false
+
+    const loadShareJourneys = async () => {
+      setShareJourneysLoading(true)
+      setShareJourneysError('')
+
+      try {
+        const data = await getProductJourneys(product.id, {
+          userId: sellerId,
+          sort: 'date',
+          page: 0,
+          size: 50,
+        })
+        const rows = (data?.journeys ?? []).filter(
+          (item) => (item.ownershipStatus || 'owning') === 'owning',
+        )
+        const detailResults = await Promise.allSettled(
+          rows.map((item) => getJourney(item.journeyId, { userId: sellerId })),
+        )
+
+        if (cancelled) return
+
+        const fulfilledCount = detailResults.filter((result) => result.status === 'fulfilled').length
+        if (rows.length > 0 && fulfilledCount === 0) {
+          throw new Error('여정 상세 정보를 불러오지 못했습니다.')
+        }
+
+        const options = detailResults.flatMap((result, index) => {
+          if (result.status !== 'fulfilled') return []
+          const option = buildShareJourney(result.value, product.id, index)
+          return option.modifiedTags.length > 0 ? [option] : []
+        })
+        const validJourneyIds = new Set(options.map((item) => item.id))
+        const validTagKeys = new Set(
+          options.flatMap((item) => item.modifiedTags.map((tag) => shareTagKey(item.id, tag))),
+        )
+
+        setJourneyTotalCount(rows.length)
+        setShareJourneyOptions(options)
+        setShareSelections((previous) => {
+          const validPrevious = previous.map(String).filter((id) => validJourneyIds.has(id))
+          return validPrevious.length > 0 ? validPrevious : options.slice(0, 1).map((item) => item.id)
+        })
+        setSituationSelections((previous) => {
+          const validPrevious = previous.map(String).filter((key) => validTagKeys.has(key))
+          if (validPrevious.length > 0) return validPrevious
+          return options[0]?.modifiedTags.map((tag) => shareTagKey(options[0].id, tag)) ?? []
+        })
+      } catch (error) {
+        if (cancelled) return
+        setShareJourneyOptions([])
+        setShareSelections([])
+        setSituationSelections([])
+        setShareJourneysError(error?.message || '자유 텍스트 수정분을 불러오지 못했습니다.')
+      } finally {
+        if (!cancelled) setShareJourneysLoading(false)
+      }
+    }
+
+    loadShareJourneys()
+
+    return () => {
+      cancelled = true
+    }
+  }, [product.id, productsLoading, sellerId, shareJourneysReloadKey])
 
   useEffect(() => {
     const resetScroll = () => {
@@ -381,7 +470,7 @@ export default function ResellCreatePage() {
     next()
   }
   const nextFromOptional = () => {
-    let draft = {}
+    let draft
     try {
       draft = JSON.parse(sessionStorage.getItem('resell-draft') || '{}')
     } catch {
@@ -391,6 +480,22 @@ export default function ResellCreatePage() {
       'resell-draft',
       JSON.stringify({ ...draft, letterShared: includeLetter, caretipShared: includeCare }),
     )
+    next()
+  }
+  const nextFromShare = () => {
+    try {
+      const draft = JSON.parse(sessionStorage.getItem('resell-draft') || '{}')
+      sessionStorage.setItem(
+        'resell-draft',
+        JSON.stringify({
+          ...draft,
+          shareSelections,
+          situationSelections,
+        }),
+      )
+    } catch {
+      // ignore storage errors; the React form state remains authoritative
+    }
     next()
   }
   const submitResell = async () => {
@@ -540,7 +645,12 @@ export default function ResellCreatePage() {
           '--share-expanded': shareSelections.length,
           '--confirm-reduction': `${(includeLetter ? 0 : 52) + (includeCare ? 0 : 199)}px`,
           '--info-price-top': diagnosis ? '675px' : '567px',
-          height: key === 'defaults' ? `${defaultsNextTop + 85}px` : undefined,
+          height:
+            key === 'defaults'
+              ? `${defaultsNextTop + 85}px`
+              : key === 'share'
+                ? `${828 + Math.max(0, shareJourneyOptions.length - 1) * 96 + shareSelections.length * 135}px`
+                : undefined,
         }}
       >
         {key === 'select' ? (
@@ -937,29 +1047,54 @@ export default function ResellCreatePage() {
             </p>
 
             <div className="resell-journey-opts">
-              {SHARE_JOURNEYS.slice(0, 1).map((journey, index) => {
-                const on = shareSelections.includes(index)
+              {shareJourneysLoading ? (
+                <p className="form-help" role="status">자유 텍스트 수정분을 불러오는 중입니다.</p>
+              ) : null}
+              {!shareJourneysLoading && shareJourneysError ? (
+                <div className="form-help" role="alert">
+                  <p>{shareJourneysError}</p>
+                  <button
+                    type="button"
+                    className="resell-share-card__preview"
+                    onClick={() => setShareJourneysReloadKey((value) => value + 1)}
+                  >
+                    다시 불러오기
+                  </button>
+                </div>
+              ) : null}
+              {!shareJourneysLoading && !shareJourneysError && shareJourneyOptions.length === 0 ? (
+                <p className="form-help">직접 수정한 태그가 있는 여정 기록이 없습니다.</p>
+              ) : null}
+              {shareJourneyOptions.map((journey, index) => {
+                const on = shareSelections.includes(journey.id)
+                const tagKeys = journey.modifiedTags.map((tag) => shareTagKey(journey.id, tag))
+                const toggleJourney = () => {
+                  setShareSelections((previous) => (
+                    previous.includes(journey.id)
+                      ? previous.filter((item) => item !== journey.id)
+                      : [...previous, journey.id]
+                  ))
+                  setSituationSelections((previous) => (
+                    on
+                      ? previous.filter((key) => !tagKeys.includes(key))
+                      : [...new Set([...previous, ...tagKeys])]
+                  ))
+                }
                 return (
                   <div
-                    key={journey.title}
+                    key={journey.id}
                     className={`resell-journey-opt${on ? ' is-on' : ''}${index === 0 ? ' resell-journey-opt--featured' : ''}`}
                   >
                     <input
                       type="checkbox"
                       checked={on}
-                      onChange={() => {}}
+                      onChange={toggleJourney}
                       aria-label={`${journey.title} 공유`}
                     />
                     <button
                       type="button"
                       className="resell-journey-opt__toggle"
-                      onClick={() =>
-                        setShareSelections((previous) =>
-                          previous.includes(index)
-                            ? previous.filter((item) => item !== index)
-                            : [...previous, index],
-                        )
-                      }
+                      onClick={toggleJourney}
                       aria-label={`${journey.title} ${on ? '선택 해제' : '선택'}`}
                     >
                       <span className="resell-journey-opt__box" aria-hidden>
@@ -969,34 +1104,26 @@ export default function ResellCreatePage() {
                     </button>
                     {on ? (
                       <div className="resell-journey-opt__situations">
-                        {['상황', '활동', '스타일'].map((category, categoryIndex) => {
-                          const categoryItems =
-                            index === 0
-                              ? ['여러 사람들이 볼 수 있습니다. 동의하십니까?']
-                              : journey.situations.filter((_, itemIndex) => itemIndex === categoryIndex)
+                        {journey.modifiedTags.map((tag) => {
+                          const selectionKey = shareTagKey(journey.id, tag)
                           return (
-                            <div className="resell-journey-opt__category" key={category}>
-                              <span>{category}</span>
-                              {categoryItems.map((item) => {
-                                const selectionKey = `${index}-${categoryIndex}-${item}`
-                                return (
-                                  <label key={item}>
-                                    <input
-                                      type="checkbox"
-                                      checked={situationSelections.includes(selectionKey)}
-                                      onChange={(event) =>
-                                        setSituationSelections((previous) =>
-                                          event.target.checked
-                                            ? [...previous, selectionKey]
-                                            : previous.filter((value) => value !== selectionKey),
-                                        )
-                                      }
-                                    />
-                                    <i aria-hidden />
-                                    <span>{item}</span>
-                                  </label>
-                                )
-                              })}
+                            <div className="resell-journey-opt__category" key={selectionKey}>
+                              <span>{tag.label}</span>
+                              <label>
+                                <input
+                                  type="checkbox"
+                                  checked={situationSelections.includes(selectionKey)}
+                                  onChange={(event) =>
+                                    setSituationSelections((previous) =>
+                                      event.target.checked
+                                        ? [...new Set([...previous, selectionKey])]
+                                        : previous.filter((value) => value !== selectionKey),
+                                    )
+                                  }
+                                />
+                                <i aria-hidden />
+                                <span>{tag.value}</span>
+                              </label>
                             </div>
                           )
                         })}
@@ -1008,7 +1135,7 @@ export default function ResellCreatePage() {
                   </div>
                 )
               })}
-              <button type="button" className="resell-next" onClick={next}>
+              <button type="button" className="resell-next" onClick={nextFromShare}>
                 {isContentEdit ? '수정하기' : '다음'}
               </button>
             </div>
