@@ -3278,6 +3278,11 @@ img {
   border: 0;
 }
 
+.product-row.is-selected {
+  outline: 2px solid var(--mc-green);
+  outline-offset: 1px;
+}
+
 .product-row--linked {
   height: 111px;
   min-height: 111px;
@@ -3364,6 +3369,23 @@ img {
   position: absolute;
   right: 20px;
   top: 38px;
+  width: 24px;
+  height: 24px;
+}
+
+.product-row__go-link {
+  position: absolute;
+  right: 12px;
+  top: 30px;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  z-index: 1;
+}
+
+.product-row__go-link .product-row__go {
+  position: static;
   width: 24px;
   height: 24px;
 }
