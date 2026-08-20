@@ -69,6 +69,19 @@ function DarkCta({ sub, title, onClick, multiline = false, disabled = false }) {
   )
 }
 
+function getCameraErrorMessage(error) {
+  if (error?.name === 'NotAllowedError') {
+    return 'QR 스캔을 사용하려면 브라우저의 카메라 권한을 허용해 주세요.'
+  }
+  if (error?.name === 'NotFoundError') {
+    return '사용할 수 있는 카메라를 찾지 못했습니다.'
+  }
+  if (error?.name === 'NotReadableError' || /device in use/i.test(error?.message || '')) {
+    return '다른 앱이나 브라우저에서 카메라를 사용 중입니다. 카메라를 사용하는 화면을 닫고 다시 시도해 주세요.'
+  }
+  return error?.message || '카메라를 시작하지 못했습니다.'
+}
+
 function QrScanner({ onDetected, onError, disabled }) {
   const videoRef = useRef(null)
   const detectedRef = useRef(false)
@@ -78,11 +91,76 @@ function QrScanner({ onDetected, onError, disabled }) {
 
     let stream
     let animationFrame
+    let scannerControls
     let cancelled = false
 
     const stopCamera = () => {
-      window.cancelAnimationFrame(animationFrame)
+      if (animationFrame) window.cancelAnimationFrame(animationFrame)
+      scannerControls?.stop()
       stream?.getTracks().forEach((track) => track.stop())
+      if (videoRef.current) videoRef.current.srcObject = null
+    }
+
+    const completeDetection = (rawValue) => {
+      const qrCode = rawValue?.trim()
+      if (!qrCode || cancelled || detectedRef.current) return
+
+      detectedRef.current = true
+      stopCamera()
+      onDetected(qrCode)
+    }
+
+    const startNativeScanner = async () => {
+      const detector = new window.BarcodeDetector({ formats: ['qr_code'] })
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: { ideal: 'environment' } },
+      })
+      if (cancelled || !videoRef.current) {
+        stopCamera()
+        return
+      }
+
+      videoRef.current.srcObject = stream
+      await videoRef.current.play()
+
+      const detect = async () => {
+        if (cancelled || detectedRef.current || !videoRef.current) return
+        try {
+          const codes = await detector.detect(videoRef.current)
+          const code = codes.find((item) => item.rawValue?.trim())
+          if (code) {
+            completeDetection(code.rawValue)
+            return
+          }
+        } catch {
+          // The video may not have a decodable frame yet; keep scanning.
+        }
+        animationFrame = window.requestAnimationFrame(detect)
+      }
+
+      animationFrame = window.requestAnimationFrame(detect)
+    }
+
+    const startFallbackScanner = async () => {
+      const { BrowserQRCodeReader } = await import('@zxing/browser')
+      if (cancelled || !videoRef.current) return
+
+      const reader = new BrowserQRCodeReader()
+      scannerControls = await reader.decodeFromConstraints(
+        {
+          audio: false,
+          video: { facingMode: { ideal: 'environment' } },
+        },
+        videoRef.current,
+        (result, _error, controls) => {
+          if (!result) return
+          scannerControls = controls
+          completeDetection(result.getText())
+        },
+      )
+
+      if (cancelled) stopCamera()
     }
 
     const startCamera = async () => {
@@ -90,43 +168,21 @@ function QrScanner({ onDetected, onError, disabled }) {
         if (!navigator.mediaDevices?.getUserMedia) {
           throw new Error('이 브라우저에서는 카메라를 사용할 수 없습니다.')
         }
-        if (!window.BarcodeDetector) {
-          throw new Error('이 브라우저에서는 QR 코드 인식을 지원하지 않습니다.')
-        }
 
-        const detector = new window.BarcodeDetector({ formats: ['qr_code'] })
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: false,
-          video: { facingMode: { ideal: 'environment' } },
-        })
-        if (cancelled || !videoRef.current) {
-          stopCamera()
-          return
-        }
-
-        videoRef.current.srcObject = stream
-        await videoRef.current.play()
-
-        const detect = async () => {
-          if (cancelled || detectedRef.current || !videoRef.current) return
+        let supportsNativeQr = Boolean(window.BarcodeDetector)
+        if (window.BarcodeDetector?.getSupportedFormats) {
           try {
-            const codes = await detector.detect(videoRef.current)
-            const qrCode = codes.find((code) => code.rawValue?.trim())?.rawValue.trim()
-            if (qrCode) {
-              detectedRef.current = true
-              stopCamera()
-              onDetected(qrCode)
-              return
-            }
+            const supportedFormats = await window.BarcodeDetector.getSupportedFormats()
+            supportsNativeQr = supportedFormats.includes('qr_code')
           } catch {
-            // The video may not have a decodable frame yet; keep scanning.
+            supportsNativeQr = false
           }
-          animationFrame = window.requestAnimationFrame(detect)
         }
 
-        animationFrame = window.requestAnimationFrame(detect)
+        if (supportsNativeQr) await startNativeScanner()
+        else await startFallbackScanner()
       } catch (error) {
-        if (!cancelled) onError(error.message || '카메라를 시작하지 못했습니다.')
+        if (!cancelled) onError(getCameraErrorMessage(error))
       }
     }
 
@@ -228,8 +284,7 @@ export default function RegisterFlowPage() {
   const { profile } = useProfile()
   const [step, setStep] = useState(0)
   const [qrMode, setQrMode] = useState('scan')
-  const [purchaseMode, setPurchaseMode] = useState('confirmed')
-  const [registrationSource, setRegistrationSource] = useState('qr')
+  const [purchaseMode, setPurchaseMode] = useState('input')
   const [skipPurchaseOpen, setSkipPurchaseOpen] = useState(false)
   const [aliasAlertOpen, setAliasAlertOpen] = useState(false)
   const [calendarOpen, setCalendarOpen] = useState(false)
@@ -240,15 +295,15 @@ export default function RegisterFlowPage() {
   const [scannedProduct, setScannedProduct] = useState(null)
   const [registrationResult, setRegistrationResult] = useState(null)
   const [passportData, setPassportData] = useState(null)
-  const [selectedStoreId, setSelectedStoreId] = useState(1)
+  const [selectedStoreId, setSelectedStoreId] = useState(null)
   const [storeData, setStoreData] = useState({ countries: [], cities: [], stores: [] })
   const [form, setForm] = useState({
-    serial: 'MCM-2026-001',
-    country: '대한민국',
-    city: '서울',
-    branch: 'MCM 신세계 본점',
-    date: '2026-08-24',
-    alias: '출근백',
+    serial: '',
+    country: '',
+    city: '',
+    branch: '',
+    date: '',
+    alias: '',
     body: '',
     product: null,
   })
@@ -257,8 +312,8 @@ export default function RegisterFlowPage() {
   const meta = stepMeta[key]
   const countryOptions = storeData.countries
   const cityOptions = storeData.cities.map((item) => item.city)
-  const branchOptions = [...new Set([...storeData.stores.map((item) => item.storeName), '기타'])]
-  const purchaseReady = Boolean(form.date && form.country && form.city && form.branch)
+  const branchOptions = [...new Set(storeData.stores.map((item) => item.storeName))]
+  const purchaseReady = Boolean(form.date && selectedStoreId)
   const storeLabel = useMemo(
     () => [form.country, form.city, form.branch].filter(Boolean).join(' · '),
     [form.country, form.city, form.branch],
@@ -304,7 +359,6 @@ export default function RegisterFlowPage() {
   }
 
   const openManualRegistration = () => {
-    setRegistrationSource('manual')
     setApiError('')
     setManualError('')
     setQrMode('manual')
@@ -317,7 +371,6 @@ export default function RegisterFlowPage() {
       return
     }
 
-    setRegistrationSource(source)
     setApiError('')
     setManualError('')
     setLoadingAction('scan')
@@ -399,10 +452,8 @@ export default function RegisterFlowPage() {
   }
 
   const completeAuthentication = async () => {
-    if (registrationSource === 'manual') {
-      const storeOptionsReady = await beginPurchaseEdit({ clear: true })
-      if (!storeOptionsReady) return
-    }
+    const storeOptionsReady = await beginPurchaseEdit({ clear: true })
+    if (!storeOptionsReady) return
     next()
   }
 
@@ -458,11 +509,13 @@ export default function RegisterFlowPage() {
       ownerId: profile.id,
       ...(form.date ? { purchaseDate: form.date } : {}),
       ...(selectedStoreId ? { storeId: selectedStoreId } : {}),
-      ...(form.body.trim() ? { firstJourneyMemo: form.body.trim() } : {}),
     }
 
     try {
       const created = await registerProduct(body)
+      if (!created?.productId) {
+        throw new Error('제품 등록 결과에서 디지털 여권 정보를 확인할 수 없습니다.')
+      }
       setRegistrationResult(created)
       try {
         const passport = await getDigitalPassport(created.productId)
@@ -551,7 +604,7 @@ export default function RegisterFlowPage() {
               id="serial"
               className={`reg-input${manualError ? ' is-error' : ''}`}
               value={form.serial}
-              placeholder="예: MCM-2026-001"
+              placeholder="제품 시리얼 번호를 입력해 주세요."
               aria-invalid={Boolean(manualError)}
               aria-describedby={manualError ? 'serial-error' : undefined}
               onChange={(event) => {
