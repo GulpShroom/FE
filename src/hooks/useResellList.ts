@@ -22,6 +22,22 @@ export interface UseResellListResult {
   refetch: () => void
 }
 
+function isRequestAborted(error: unknown, signal?: AbortSignal) {
+  if (signal?.aborted) return true
+  if (axios.isCancel(error)) return true
+  if (!error || typeof error !== 'object') return false
+  const maybe = error as { code?: string; name?: string }
+  return maybe.code === 'ERR_CANCELED' || maybe.name === 'CanceledError' || maybe.name === 'AbortError'
+}
+
+function normalizeListResponse(response: unknown): ResellListResponse {
+  const data = response && typeof response === 'object' ? (response as ResellListResponse) : null
+  return {
+    totalCount: Number(data?.totalCount ?? 0),
+    resells: Array.isArray(data?.resells) ? data.resells : [],
+  }
+}
+
 /**
  * React Query가 없는 현재 프로젝트에서 사용할 리셀 목록 데이터 패칭 훅입니다.
  * params가 변경되면 자동으로 다시 요청하며, 이전 요청은 취소합니다.
@@ -60,9 +76,13 @@ export function useResellList(
       { status, userId, role, page, size },
       { signal: controller.signal },
     )
-      .then(setData)
+      .then((response) => {
+        if (controller.signal.aborted) return
+        setData(normalizeListResponse(response))
+        setError(null)
+      })
       .catch((requestError: unknown) => {
-        if (axios.isCancel(requestError)) return
+        if (isRequestAborted(requestError, controller.signal)) return
         setError(
           requestError instanceof Error
             ? requestError
