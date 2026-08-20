@@ -4,29 +4,56 @@ import { AppShell } from '../../components/AppShell'
 import { LeafletJourneyMap } from '../../components/LeafletJourneyMap'
 import { useProfile } from '../../context/ProfileContext'
 import { getProductJourneys } from '../../api/journeys'
+import {
+  getMyProducts,
+  getProductJourneyMap,
+  getProductLineage,
+  getProductSummary,
+} from '../../api/dashboard'
 import logo from '../../assets/final/logo-mark.png'
 import planeIcon from '../../assets/final/progress-plane.png'
 import ctaArrow from '../../assets/final/cta-arrow.svg'
 import emptyJourney from '../../assets/final/empty-journey.svg'
 import backIcon from '../../assets/final/back.png'
-import expandedMap from '../../assets/final/expanded-map.png'
-import mapMarker1 from '../../assets/final/map-marker-1.png'
-import mapMarker2 from '../../assets/final/map-marker-2.png'
-import mapMarker3 from '../../assets/final/map-marker-3.png'
-import { products } from '../../data/mock'
+import stamp from '../../assets/final/stamp.png'
 import { allCountriesOption, countryGroups, searchableCountries } from '../../data/countries'
-import { resellProductDummies } from '../../data/resellDummies'
 
-const selectableProducts = resellProductDummies
-  .map((dummy) => products.find((product) => product.id === dummy.productId))
-  .filter(Boolean)
+function formatOwnershipPeriod(ownedFrom, ownedTo, isCurrentOwner) {
+  const start = ownedFrom ? String(new Date(ownedFrom).getFullYear()).slice(-2) : '—'
+  const end = isCurrentOwner || !ownedTo
+    ? '현재'
+    : String(new Date(ownedTo).getFullYear()).slice(-2)
+  return start === '—' ? end : `'${start}~${end === '현재' ? end : `'${end}`}`
+}
+
+function mapApiProduct(item, summary = {}) {
+  const productId = item.productId ?? item.id
+  const authenticated = summary.isAuthenticated ?? item.isAuthenticated ?? item.authenticated
+
+  return {
+    id: productId,
+    alias: item.nickname || summary.nickname || item.officialName || '이름 없는 제품',
+    authenticity: authenticated === false ? '정품 인증 확인 중' : '정품 인증 완료',
+    journeyCount: item.journeyCount ?? summary.journeyCount ?? 0,
+    overallScore: summary.score ?? summary.provenanceScore ?? item.score ?? item.provenanceScore ?? 0,
+    stamp,
+    generations: [],
+    mapCounts: [],
+  }
+}
+
+function toMapCountryId(value) {
+  const normalized = String(value || '').replace(/\s/g, '').toLocaleLowerCase('ko-KR')
+  const country = searchableCountries.find((item) => (
+    item.id === normalized
+      || item.isoCode.toLocaleLowerCase('en-US') === normalized
+      || item.label.replace(/\s/g, '').toLocaleLowerCase('ko-KR') === normalized
+  ))
+  return country?.id || normalized
+}
 
 function OverviewSlide({
   product,
-  catalog,
-  productIndex,
-  onDotClick,
-  showDots,
   swipeHandlers,
 }) {
   return (
@@ -53,18 +80,6 @@ function OverviewSlide({
           </div>
         </article>
 
-        <div className={`main-dots${showDots ? '' : ' is-spacer'}`} aria-hidden={!showDots}>
-          {catalog.map((item, index) => (
-            <button
-              key={item.id}
-              type="button"
-              tabIndex={showDots ? 0 : -1}
-              className={index === productIndex ? 'is-active' : ''}
-              aria-label={`${item.alias} 선택`}
-              onClick={() => showDots && onDotClick(index)}
-            />
-          ))}
-        </div>
       </div>
 
     </div>
@@ -79,6 +94,9 @@ function ProductJourneyDetails({
   onSelectCountry,
   mapExpanded,
   onToggleMap,
+  isLoading,
+  error,
+  onRetry,
 }) {
   const [countryQuery, setCountryQuery] = useState('')
   const [countrySearchOpen, setCountrySearchOpen] = useState(false)
@@ -99,13 +117,25 @@ function ProductJourneyDetails({
     setCountrySearchOpen(false)
   }
 
-  if (mapExpanded) {
-    const markers = [
-      { image: mapMarker1, className: 'expanded-map__marker--one', href: '/journey/entry/j1?view=owned&photo=1&from=map' },
-      { image: mapMarker2, className: 'expanded-map__marker--two', href: '/journey/entry/j1?view=owned&photo=2&from=map' },
-      { image: mapMarker3, className: 'expanded-map__marker--three', href: '/journey/entry/j4?view=other&photo=3&from=map' },
-    ]
+  if (isLoading) {
+    return (
+      <div className="main-dashboard-state main-dashboard-state--details" role="status">
+        <span className="main-dashboard-spinner" aria-hidden="true" />
+        <p>제품의 여정 정보를 불러오는 중입니다.</p>
+      </div>
+    )
+  }
 
+  if (error) {
+    return (
+      <div className="main-dashboard-state main-dashboard-state--details" role="alert">
+        <p>{error.message || '여정 정보를 불러오지 못했습니다.'}</p>
+        <button type="button" onClick={onRetry}>다시 시도</button>
+      </div>
+    )
+  }
+
+  if (mapExpanded) {
     return (
       <section className="expanded-map-view" aria-label="확대된 여정 지도">
         <header className="expanded-map__header">
@@ -115,18 +145,7 @@ function ProductJourneyDetails({
           <img className="expanded-map__logo" src={logo} alt="M·Carry" width={133} height={40} />
         </header>
         <div className="expanded-map__canvas">
-          <img className="expanded-map__background" src={expandedMap} alt="" />
-          {markers.map((marker) => (
-            <Link
-              key={marker.className}
-              to={marker.href}
-              className={`expanded-map__marker ${marker.className}`}
-              aria-label="여정 사진 보기"
-            >
-              <img src={marker.image} alt="" width={100} height={100} />
-            </Link>
-          ))}
-          <span className="expanded-map__place">Casa</span>
+          <LeafletJourneyMap points={product.mapCounts} countryId={countryId} />
         </div>
       </section>
     )
@@ -253,44 +272,131 @@ function ProductJourneyDetails({
 export default function MainPage() {
   const [searchParams] = useSearchParams()
   const { profile } = useProfile()
+  const profileId = profile?.userId ?? profile?.id
   const forceEmpty = searchParams.get('empty') === '1'
-  const hasProducts = !forceEmpty && profile.ownedCount > 0 && selectableProducts.length > 0
-  const [catalog, setCatalog] = useState(() => (hasProducts ? selectableProducts : []))
+  const missingProfileId = profileId == null || profileId === ''
+  const [catalog, setCatalog] = useState([])
+  const [catalogLoading, setCatalogLoading] = useState(true)
+  const [catalogError, setCatalogError] = useState(null)
+  const [catalogRequestVersion, setCatalogRequestVersion] = useState(0)
+  const [detailsLoadedProductId, setDetailsLoadedProductId] = useState(null)
+  const [detailsFailure, setDetailsFailure] = useState(null)
+  const [detailsRequestVersion, setDetailsRequestVersion] = useState(0)
   const trackRef = useRef(null)
   const dragRef = useRef({ active: false, startX: 0, scrollLeft: 0 })
   const [productIndex, setProductIndex] = useState(0)
   const product = catalog[productIndex] ?? catalog[0]
   const activeProductId = product?.id
+  const detailsError = detailsFailure
+    && String(detailsFailure.productId) === String(activeProductId)
+    ? detailsFailure.error
+    : null
+  const detailsLoading = Boolean(
+    activeProductId
+      && String(detailsLoadedProductId) !== String(activeProductId)
+      && !detailsError,
+  )
 
-  const [generationIndex, setGenerationIndex] = useState(1)
+  const [generationIndex, setGenerationIndex] = useState(0)
   const [countryId, setCountryId] = useState('all')
   const [mapExpanded, setMapExpanded] = useState(() => searchParams.get('map') === 'expanded')
 
   useEffect(() => {
-    if (!activeProductId) return undefined
-
+    if (forceEmpty || missingProfileId) return undefined
     let cancelled = false
-    getProductJourneys(activeProductId, {
-      userId: profile.id,
-      page: 0,
-      size: 50,
-    })
-      .then((data) => {
-        if (cancelled) return
-        const journeyCount = data?.totalCount ?? data?.journeys?.length
-        if (!Number.isFinite(journeyCount)) return
-        setCatalog((current) => current.map((item) => (
-          item.id === activeProductId ? { ...item, journeyCount } : item
+
+    getMyProducts(profileId)
+      .then(async (data) => {
+        const items = Array.isArray(data) ? data : data?.products ?? []
+        const summaries = await Promise.all(items.map((item) => (
+          getProductSummary(item.productId ?? item.id).catch(() => ({}))
         )))
+        if (cancelled) return
+        setCatalog(items.map((item, index) => mapApiProduct(item, summaries[index])))
+        setProductIndex(0)
       })
-      .catch(() => {
-        // Keep the seeded product overview when the API is unavailable.
+      .catch((error) => {
+        if (cancelled) return
+        setCatalog([])
+        setCatalogError(error)
+      })
+      .finally(() => {
+        if (!cancelled) setCatalogLoading(false)
       })
 
     return () => {
       cancelled = true
     }
-  }, [activeProductId, profile.id])
+  }, [catalogRequestVersion, forceEmpty, missingProfileId, profileId])
+
+  useEffect(() => {
+    if (!activeProductId) return undefined
+
+    let cancelled = false
+
+    Promise.all([
+      getProductJourneys(activeProductId, {
+        userId: profileId,
+        page: 0,
+        size: 100,
+      }),
+      getProductLineage(activeProductId),
+      getProductJourneyMap(activeProductId, profileId),
+    ])
+      .then(([journeyData, lineageData, mapData]) => {
+        if (cancelled) return
+
+        const journeys = journeyData?.journeys ?? []
+        const journeyById = new Map(journeys.map((journey) => [String(journey.journeyId), journey]))
+        const rawGenerations = lineageData?.generations ?? journeyData?.generations ?? []
+        const generations = rawGenerations.map((generation, index) => ({
+          id: generation.ownershipId ?? generation.id ?? generation.generation ?? index + 1,
+          label: String(
+            generation.keeperLabel
+              || generation.label
+              || `${generation.generation ?? index + 1}${index === 0 ? 'st' : index === 1 ? 'nd' : index === 2 ? 'rd' : 'th'} Owner`,
+          ).replace('Keeper', 'Owner'),
+          period: generation.durationText || generation.period || formatOwnershipPeriod(
+            generation.ownedFrom,
+            generation.ownedTo,
+            generation.isCurrentOwner,
+          ),
+        }))
+        const rawMarkers = mapData?.markers?.length
+          ? mapData.markers
+          : journeys.filter((journey) => (
+            Number.isFinite(journey.latitude) && Number.isFinite(journey.longitude)
+          ))
+        const mapCounts = rawMarkers.map((marker) => {
+          const journey = journeyById.get(String(marker.journeyId)) ?? {}
+          return {
+            ...marker,
+            country: toMapCountryId(marker.country || journey.country),
+            latitude: marker.latitude ?? journey.latitude,
+            longitude: marker.longitude ?? journey.longitude,
+            photoUrl: marker.photoUrl || marker.thumbnailUrl || journey.photoUrl || journey.thumbnailUrl,
+            value: marker.value ?? 1,
+          }
+        })
+        const journeyCount = journeyData?.totalCount ?? journeys.length
+
+        setCatalog((current) => current.map((item) => (
+          String(item.id) === String(activeProductId)
+            ? { ...item, journeyCount, generations, mapCounts }
+            : item
+        )))
+        setGenerationIndex(Math.max(generations.length - 1, 0))
+        setDetailsLoadedProductId(activeProductId)
+        setDetailsFailure(null)
+      })
+      .catch((error) => {
+        if (!cancelled) setDetailsFailure({ productId: activeProductId, error })
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [activeProductId, detailsRequestVersion, profileId])
 
   useEffect(() => {
     const track = trackRef.current
@@ -350,7 +456,58 @@ export default function MainPage() {
     scrollToIndex(Math.max(0, Math.min(index, catalog.length - 1)))
   }
 
-  if (!product) {
+  if (missingProfileId && !forceEmpty) {
+    return (
+      <AppShell hideHeader>
+        <main className="page--main-empty-product main-dashboard-state" role="alert">
+          <div className="empty-product-brand">
+            <img src={logo} alt="M·Carry" width={133} height={40} />
+            <p>Carry the Moment, Share the Value</p>
+          </div>
+          <p>로그인 사용자 정보를 확인할 수 없습니다. 프로필을 다시 선택해주세요.</p>
+          <Link to="/">프로필 다시 선택하기</Link>
+        </main>
+      </AppShell>
+    )
+  }
+
+  if (catalogLoading && !forceEmpty) {
+    return (
+      <AppShell hideHeader>
+        <main className="page--main-empty-product main-dashboard-state" role="status">
+          <div className="empty-product-brand">
+            <img src={logo} alt="M·Carry" width={133} height={40} />
+            <p>Carry the Moment, Share the Value</p>
+          </div>
+          <span className="main-dashboard-spinner" aria-hidden="true" />
+          <p>등록 제품을 불러오는 중입니다.</p>
+        </main>
+      </AppShell>
+    )
+  }
+
+  if (catalogError && !forceEmpty) {
+    return (
+      <AppShell hideHeader>
+        <main className="page--main-empty-product main-dashboard-state" role="alert">
+          <div className="empty-product-brand">
+            <img src={logo} alt="M·Carry" width={133} height={40} />
+            <p>Carry the Moment, Share the Value</p>
+          </div>
+          <p>{catalogError.message || '등록 제품을 불러오지 못했습니다.'}</p>
+          <button type="button" onClick={() => {
+            setCatalogLoading(true)
+            setCatalogError(null)
+            setCatalogRequestVersion((version) => version + 1)
+          }}>
+            다시 시도
+          </button>
+        </main>
+      </AppShell>
+    )
+  }
+
+  if (!product || forceEmpty) {
     return (
       <AppShell hideHeader>
         <main className="page--main-empty-product" aria-labelledby="empty-product-title">
@@ -393,15 +550,11 @@ export default function MainPage() {
           className="main-track"
           ref={trackRef}
         >
-          {catalog.map((item, slideIndex) => {
+          {catalog.map((item) => {
             return (
               <OverviewSlide
                 key={item.id}
                 product={item}
-                catalog={catalog}
-                productIndex={productIndex}
-                onDotClick={scrollToIndex}
-                showDots={slideIndex === productIndex}
                 swipeHandlers={{
                   onPointerDown: startCardSwipe,
                   onPointerMove: moveCardSwipe,
@@ -411,6 +564,18 @@ export default function MainPage() {
               />
             )
           })}
+        </div>
+
+        <div className="main-dots" aria-label="제품 선택">
+          {catalog.map((item, index) => (
+            <button
+              key={item.id}
+              type="button"
+              className={index === productIndex ? 'is-active' : ''}
+              aria-label={`${item.alias} 선택`}
+              onClick={() => scrollToIndex(index)}
+            />
+          ))}
         </div>
 
         <ProductJourneyDetails
@@ -423,6 +588,13 @@ export default function MainPage() {
           }}
           mapExpanded={mapExpanded}
           onToggleMap={() => setMapExpanded((expanded) => !expanded)}
+          isLoading={detailsLoading}
+          error={detailsError}
+          onRetry={() => {
+            setDetailsLoadedProductId(null)
+            setDetailsFailure(null)
+            setDetailsRequestVersion((version) => version + 1)
+          }}
         />
 
         <Link
