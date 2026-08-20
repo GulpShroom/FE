@@ -67,6 +67,8 @@ const SHARE_TAG_LABELS = {
   style: '스타일',
 }
 
+const SELECTED_TAG_TYPES = new Set(Object.keys(SHARE_TAG_LABELS))
+
 function buildShareJourney(detail, productId, index) {
   const journey = mapJourneyDetail(detail, { productId })
   const modifiedTags = Object.entries(SHARE_TAG_LABELS).flatMap(([type, label]) => {
@@ -88,6 +90,30 @@ function buildShareJourney(detail, productId, index) {
 
 function shareTagKey(journeyId, tag) {
   return `${journeyId}:${tag.type}`
+}
+
+function buildSelectedTags(selectionKeys, selectedJourneyIds) {
+  const selectedJourneyIdSet = new Set(selectedJourneyIds.map(String))
+  const seen = new Set()
+
+  return selectionKeys.flatMap((selectionKey) => {
+    const [journeyId, type] = String(selectionKey).split(':')
+    const numericJourneyId = Number(journeyId)
+    const uniqueKey = `${numericJourneyId}:${type}`
+
+    if (
+      !selectedJourneyIdSet.has(journeyId) ||
+      !Number.isSafeInteger(numericJourneyId) ||
+      numericJourneyId <= 0 ||
+      !SELECTED_TAG_TYPES.has(type) ||
+      seen.has(uniqueKey)
+    ) {
+      return []
+    }
+
+    seen.add(uniqueKey)
+    return [{ journeyId: numericJourneyId, type }]
+  })
 }
 
 function formatDiagnosisDate(value) {
@@ -503,6 +529,7 @@ export default function ResellCreatePage() {
 
     const numericPrice = Number(String(price).replace(/,/g, ''))
     const uploadedPhotoUrls = photoUrls.filter(Boolean)
+    const selectedTags = buildSelectedTags(situationSelections, shareSelections)
 
     if (uploadedPhotoUrls.length === 0 || !Number.isSafeInteger(numericPrice) || numericPrice <= 0) {
       setSubmitError('사진을 1장 이상 등록하고 올바른 판매 가격을 입력해 주세요.')
@@ -521,6 +548,7 @@ export default function ResellCreatePage() {
         letterShared: includeLetter,
         caretipShared: includeCare,
         photoUrls: uploadedPhotoUrls,
+        selectedTags,
         ...(includeLetter && letter.trim() ? { letterContent: letter.trim() } : {}),
       })
       if (includeLetter && letter.trim() && created?.resellId != null) {

@@ -22,6 +22,13 @@ export interface ApiResponseResellListResponse {
   timestamp: string
 }
 
+export type ResellSelectedTagType = 'activity' | 'situation' | 'style'
+
+export interface ResellSelectedTag {
+  journeyId: number
+  type: ResellSelectedTagType
+}
+
 export interface ResellSaveRequest {
   productId: number
   sellerId: number
@@ -30,6 +37,7 @@ export interface ResellSaveRequest {
   letterShared: boolean
   caretipShared: boolean
   photoUrls: string[]
+  selectedTags: ResellSelectedTag[]
   /** 판매자 편지 본문 — 백엔드가 무시할 수 있으나 구매 전 초안 전달용으로 함께 전송 */
   letterContent?: string
 }
@@ -64,6 +72,8 @@ export interface ResellLockedJourney {
   cityCount: number
   hasLetter: boolean
   hasCareTip: boolean
+  /** 구매 전에는 선택 내용 대신 존재 여부만 공개됩니다. */
+  hasSelectedTags: boolean
 }
 
 export interface ResellDetailResponse {

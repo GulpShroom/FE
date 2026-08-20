@@ -139,6 +139,7 @@ export default function ResellDetailPage() {
   const canViewPrivateContent = Boolean(isAuthor || purchased || isBuyerHistory)
   const hasLetter = Boolean(detail?.lockedJourney?.hasLetter)
   const hasCareTip = Boolean(detail?.lockedJourney?.hasCareTip)
+  const hasSelectedTags = Boolean(detail?.lockedJourney?.hasSelectedTags)
 
   const confirmBuy = async () => {
     if (!hasUserId || !id || buying) return false
@@ -169,6 +170,7 @@ export default function ResellDetailPage() {
         productId: completed.productId ?? started.productId,
         newGeneration: completed.newGeneration,
         letterOpened: completed.letterOpened,
+        inheritedTags: Array.isArray(completed.inheritedTags) ? completed.inheritedTags : [],
       })
       if (completed.productId ?? started.productId) {
         setProductId(completed.productId ?? started.productId)
@@ -256,6 +258,7 @@ export default function ResellDetailPage() {
                   productId: transferContext?.productId || productId,
                   transferId: transferContext?.transferId,
                   newGeneration: transferContext?.newGeneration,
+                  inheritedTags: transferContext?.inheritedTags ?? [],
                   fromPurchase: true,
                 },
               })
@@ -358,13 +361,25 @@ export default function ResellDetailPage() {
           <button
             type="button"
             className="resell-preview__row resell-preview__row--btn resell-preview__row--journey"
-            onClick={() =>
+            onClick={() => {
+              if (!canViewPrivateContent) {
+                setActionError(
+                  hasSelectedTags
+                    ? '선택된 여정 태그는 구매·계승 완료 후 디지털 패스포트에서 공개됩니다.'
+                    : '판매자가 공유하기로 선택한 여정 태그가 없습니다.',
+                )
+                return
+              }
               navigate(`/resell/${id}/journey`, {
                 state: { fromDetail: true },
               })
-            }
+            }}
           >
-            <span>Journey Log</span>
+            <span>
+              {hasSelectedTags && !canViewPrivateContent
+                ? 'Journey Log · 선택 태그 있음'
+                : 'Journey Log'}
+            </span>
             <img className="resell-preview__chev" src={previewChevronIcon} alt="" width={24} height={24} />
           </button>
         </article>
