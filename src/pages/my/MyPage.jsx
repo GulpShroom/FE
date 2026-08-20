@@ -29,6 +29,7 @@ export default function MyPage() {
 
   useEffect(() => {
     let cancelled = false
+    setOwnedCount(null)
     getUserProducts(profile.id, { status: 'owning' })
       .then((data) => {
         if (cancelled) return
@@ -40,12 +41,12 @@ export default function MyPage() {
           setOwnedCount(0)
           return
         }
-        setOwnedCount(profile.ownedCount ?? 0)
+        setOwnedCount(0)
       })
     return () => {
       cancelled = true
     }
-  }, [profile.id, profile.ownedCount])
+  }, [profile.id])
 
   const saveName = () => {
     const next = nameDraft.trim()
@@ -54,7 +55,7 @@ export default function MyPage() {
     setEditingName(false)
   }
 
-  const displayOwnedCount = ownedCount ?? profile.ownedCount ?? 0
+  const displayOwnedCount = ownedCount === null ? '…' : ownedCount
 
   return (
     <AppShell>
