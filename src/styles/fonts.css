@@ -58,6 +58,16 @@
 }
 
 @font-face {
+  font-family: 'Cormorant Garamond';
+  src:
+    local('Cormorant Garamond Bold'),
+    url('../assets/fonts/CormorantGaramond-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
   font-family: 'Paperlogy';
   src:
     local('Paperlogy 4 Regular'),
