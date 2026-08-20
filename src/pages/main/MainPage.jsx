@@ -1,77 +1,134 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { AppShell } from '../../components/AppShell'
+import { GoogleJourneyMap } from '../../components/GoogleJourneyMap'
+import { useProfile } from '../../context/ProfileContext'
+import { getProductJourneys } from '../../api/journeys'
 import logo from '../../assets/final/logo-mark.png'
-import planeIcon from '../../assets/final/plane-tip-clear.png'
+import planeIcon from '../../assets/final/progress-plane.png'
 import ctaArrow from '../../assets/final/cta-arrow.svg'
 import emptyJourney from '../../assets/final/empty-journey.svg'
+import backIcon from '../../assets/final/back.png'
+import expandedMap from '../../assets/final/expanded-map.png'
+import mapMarker1 from '../../assets/final/map-marker-1.png'
+import mapMarker2 from '../../assets/final/map-marker-2.png'
+import mapMarker3 from '../../assets/final/map-marker-3.png'
 import { mapCountries, products } from '../../data/mock'
+import { resellProductDummies } from '../../data/resellDummies'
+
+const selectableProducts = resellProductDummies
+  .map((dummy) => products.find((product) => product.id === dummy.productId))
+  .filter(Boolean)
 
 function OverviewSlide({
   product,
-  generationId,
-  onGeneration,
-  countryId,
-  countryLabel,
-  countryOpen,
-  onToggleCountry,
-  onSelectCountry,
-  mapExpanded,
-  onToggleMap,
   catalog,
   productIndex,
   onDotClick,
   showDots,
+  swipeHandlers,
 }) {
   return (
     <div className="main-slide">
       <div className="main-slide__overview">
-        <article className="overview-card">
+        <article className="overview-card" {...swipeHandlers}>
           <div className="overview-card__inner">
-            <img
-              className="overview-card__stamp"
-              src={product.stamp}
-              alt=""
-              width={167}
-              height={168}
-            />
+            <span className="overview-card__stamp-box" aria-hidden="true">
+              <img
+                className="overview-card__stamp"
+                src={product.stamp}
+                alt=""
+                width={168}
+                height={168}
+              />
+            </span>
             <p className="overview-card__label">Journey Overview</p>
             <h2 className="overview-card__title">{product.alias}</h2>
             <p className="overview-card__meta">
               <span>{product.authenticity}</span>
               <span>{product.journeyCount}개의 여정 기록</span>
             </p>
+            <p className="overview-card__score">{product.overallScore}</p>
           </div>
         </article>
 
         <div className={`main-dots${showDots ? '' : ' is-spacer'}`} aria-hidden={!showDots}>
-          {catalog.map((p, i) => (
+          {catalog.map((item, index) => (
             <button
-              key={p.id}
+              key={item.id}
               type="button"
               tabIndex={showDots ? 0 : -1}
-              className={i === productIndex ? 'is-active' : ''}
-              aria-label={`${p.alias} 선택`}
-              onClick={() => showDots && onDotClick(i)}
+              className={index === productIndex ? 'is-active' : ''}
+              aria-label={`${item.alias} 선택`}
+              onClick={() => showDots && onDotClick(index)}
             />
           ))}
         </div>
       </div>
 
+    </div>
+  )
+}
+
+function ProductJourneyDetails({
+  product,
+  generationIndex,
+  onGeneration,
+  countryId,
+  countryOpen,
+  onToggleCountry,
+  onSelectCountry,
+  mapExpanded,
+  onToggleMap,
+}) {
+  if (mapExpanded) {
+    const markers = [
+      { image: mapMarker1, className: 'expanded-map__marker--one', href: '/journey/entry/j1?view=owned&photo=1&from=map' },
+      { image: mapMarker2, className: 'expanded-map__marker--two', href: '/journey/entry/j1?view=owned&photo=2&from=map' },
+      { image: mapMarker3, className: 'expanded-map__marker--three', href: '/journey/entry/j4?view=other&photo=3&from=map' },
+    ]
+
+    return (
+      <section className="expanded-map-view" aria-label="확대된 여정 지도">
+        <header className="expanded-map__header">
+          <button type="button" onClick={onToggleMap} aria-label="지도 닫기">
+            <img src={backIcon} alt="" width={30} height={30} />
+          </button>
+          <img className="expanded-map__logo" src={logo} alt="M·Carry" width={133} height={40} />
+        </header>
+        <div className="expanded-map__canvas">
+          <img className="expanded-map__background" src={expandedMap} alt="" />
+          {markers.map((marker) => (
+            <Link
+              key={marker.className}
+              to={marker.href}
+              className={`expanded-map__marker ${marker.className}`}
+              aria-label="여정 사진 보기"
+            >
+              <img src={marker.image} alt="" width={100} height={100} />
+            </Link>
+          ))}
+          <span className="expanded-map__place">Casa</span>
+        </div>
+      </section>
+    )
+  }
+
+  return (
       <div className="main-slide__lower">
         <section className="timeline" aria-label="소유 세대">
           <div className="timeline__line" />
           <div className="timeline__nodes">
-            {product.generations.map((gen) => (
+          {product.generations.map((generation, index) => (
               <button
-                key={gen.id}
+                key={generation.id}
                 type="button"
-                className={`timeline__node${generationId === gen.id ? ' is-active' : ''}`}
-                onClick={() => onGeneration(gen.id)}
+              className={`timeline__node${generationIndex === index ? ' is-active' : ''}`}
+              onClick={() => onGeneration(index)}
               >
                 <span className="timeline__dot" />
-                <span className="timeline__owner">{gen.label}</span>
-                <span className="timeline__label">{gen.period}</span>
+                <span className="timeline__owner">{generation.label}</span>
+                <span className="timeline__label">{generation.period}</span>
               </button>
             ))}
           </div>
@@ -79,177 +136,246 @@ function OverviewSlide({
         </section>
 
         <section className={`map-panel${mapExpanded ? ' is-expanded' : ''}`}>
-          <button type="button" className="map-panel__chip-hit" onClick={onToggleCountry}>
-            <span className="sr-only">{countryLabel}</span>
-          </button>
+        <div className="map-country-bar" role="listbox" aria-label="국가 선택">
+          {mapCountries.slice(0, countryOpen ? 4 : 1).map((country) => (
+            <button
+              key={country.id}
+              type="button"
+              role="option"
+              aria-selected={countryId === country.id}
+              className={countryId === country.id ? 'is-active' : ''}
+              onClick={() => onSelectCountry(country.id)}
+            >
+              {country.label}
+            </button>
+          ))}
           <button
             type="button"
-            className="map-panel__expand-hit"
-            aria-label={mapExpanded ? '지도 축소' : '지도 확대'}
-            onClick={onToggleMap}
-          />
-
-          {countryOpen ? (
-            <div className="map-country-menu" role="listbox">
-              {mapCountries.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  className={countryId === c.id ? 'is-active' : ''}
-                  onClick={() => onSelectCountry(c.id)}
-                >
-                  {c.label}
-                </button>
-              ))}
-            </div>
-          ) : null}
+            className={`map-country-bar__next${countryOpen ? ' is-open' : ''}`}
+            aria-label={countryOpen ? '국가 목록 닫기' : '국가 목록 열기'}
+            aria-expanded={countryOpen}
+            onClick={onToggleCountry}
+          >
+            <span aria-hidden="true" />
+          </button>
+        </div>
+        <button
+          type="button"
+          className="map-panel__expand-hit"
+          aria-label={mapExpanded ? '지도 축소' : '지도 확대'}
+          onClick={onToggleMap}
+        >
+          <svg viewBox="0 0 32 32" aria-hidden="true">
+            <path d="M18 5h9v9M27 5 15 17M13 9H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-6" />
+          </svg>
+        </button>
 
           <div className="map-panel__body">
-            <img
-              className="map-panel__img"
-              src={product.map}
-              alt="여정 지도"
-              width={335}
-              height={263}
+            <GoogleJourneyMap
+              fallbackSrc={product.map}
+              points={product.mapCounts}
+              countryId={countryId}
             />
           </div>
         </section>
       </div>
-    </div>
   )
 }
 
 export default function MainPage() {
   const [searchParams] = useSearchParams()
+  const { profile } = useProfile()
   const forceEmpty = searchParams.get('empty') === '1'
-  const catalog = forceEmpty ? [] : products
-
+  const hasProducts = !forceEmpty && profile.ownedCount > 0 && selectableProducts.length > 0
+  const [catalog, setCatalog] = useState(() => (hasProducts ? selectableProducts : []))
   const trackRef = useRef(null)
+  const dragRef = useRef({ active: false, startX: 0, scrollLeft: 0 })
   const [productIndex, setProductIndex] = useState(0)
   const product = catalog[productIndex] ?? catalog[0]
+  const activeProductId = product?.id
 
-  const [generationByProduct, setGenerationByProduct] = useState(() => {
-    const init = {}
-    products.forEach((p) => {
-      init[p.id] = p.generations[1]?.id ?? p.generations[0]?.id
-    })
-    return init
-  })
+  const [generationIndex, setGenerationIndex] = useState(1)
   const [countryOpen, setCountryOpen] = useState(false)
   const [countryId, setCountryId] = useState('all')
-  const [mapExpanded, setMapExpanded] = useState(false)
-
-  const countryLabel =
-    mapCountries.find((c) => c.id === countryId)?.label ?? '전체'
+  const [mapExpanded, setMapExpanded] = useState(() => searchParams.get('map') === 'expanded')
 
   useEffect(() => {
-    const el = trackRef.current
-    if (!el) return undefined
+    if (!activeProductId) return undefined
+
+    let cancelled = false
+    getProductJourneys(activeProductId, {
+      userId: profile.id,
+      page: 0,
+      size: 50,
+    })
+      .then((data) => {
+        if (cancelled) return
+        const journeyCount = data?.totalCount ?? data?.journeys?.length
+        if (!Number.isFinite(journeyCount)) return
+        setCatalog((current) => current.map((item) => (
+          item.id === activeProductId ? { ...item, journeyCount } : item
+        )))
+      })
+      .catch(() => {
+        // Keep the seeded product overview when the API is unavailable.
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [activeProductId, profile.id])
+
+  useEffect(() => {
+    const track = trackRef.current
+    if (!track) return undefined
 
     const onScroll = () => {
-      const idx = Math.round(el.scrollLeft / Math.max(el.clientWidth, 1))
-      setProductIndex((prev) => {
-        if (idx === prev || idx < 0 || idx >= catalog.length) return prev
-        setCountryOpen(false)
+      const index = Math.round(track.scrollLeft / Math.max(track.clientWidth, 1))
+      setProductIndex((previous) => {
+        if (index === previous || index < 0 || index >= catalog.length) return previous
         setCountryId('all')
+        setCountryOpen(false)
         setMapExpanded(false)
-        return idx
+        return index
       })
     }
 
-    el.addEventListener('scroll', onScroll, { passive: true })
-    return () => el.removeEventListener('scroll', onScroll)
+    track.addEventListener('scroll', onScroll, { passive: true })
+    return () => track.removeEventListener('scroll', onScroll)
   }, [catalog.length])
 
-  const scrollToIndex = (idx) => {
-    const el = trackRef.current
-    if (!el) return
-    el.scrollTo({ left: idx * el.clientWidth, behavior: 'smooth' })
-    setProductIndex(idx)
-    setCountryOpen(false)
+  const scrollToIndex = (index) => {
+    const track = trackRef.current
+    if (!track) return
+    track.scrollTo({ left: index * track.clientWidth, behavior: 'smooth' })
+    setProductIndex(index)
     setCountryId('all')
+    setCountryOpen(false)
     setMapExpanded(false)
+  }
+
+  const startCardSwipe = (event) => {
+    if (event.button !== 0) return
+    const track = trackRef.current
+    if (!track) return
+    dragRef.current = {
+      active: true,
+      startX: event.clientX,
+      scrollLeft: track.scrollLeft,
+    }
+    track.classList.add('is-dragging')
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  const moveCardSwipe = (event) => {
+    const track = trackRef.current
+    if (!track || !dragRef.current.active) return
+    track.scrollLeft = dragRef.current.scrollLeft - (event.clientX - dragRef.current.startX)
+  }
+
+  const endCardSwipe = (event) => {
+    const track = trackRef.current
+    if (!track || !dragRef.current.active) return
+    dragRef.current.active = false
+    track.classList.remove('is-dragging')
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+    const index = Math.round(track.scrollLeft / Math.max(track.clientWidth, 1))
+    scrollToIndex(Math.max(0, Math.min(index, catalog.length - 1)))
   }
 
   if (!product) {
     return (
       <AppShell hideHeader>
-        <div className="page page--main page--main-empty">
-          <div className="main-brand">
-            <img className="main-brand__logo" src={logo} alt="M·Carry" width={131} height={39} />
-            <p className="main-brand__tagline">Carry the Moment, Share the Value</p>
+        <main className="page--main-empty-product" aria-labelledby="empty-product-title">
+          <div className="empty-product-brand">
+            <img src={logo} alt="M·Carry" width={133} height={40} />
+            <p>Carry the Moment, Share the Value</p>
           </div>
 
-          <div className="empty-hero empty-hero--main">
-            <img
-              className="empty-hero__illust"
-              src={emptyJourney}
-              alt=""
-              width={144}
-              height={144}
-            />
-            <p className="empty-hero__title">아직 등록된 제품이 없어요</p>
-            <p className="empty-hero__desc">
+          <section className="empty-product-message">
+            <img src={emptyJourney} alt="" width={144} height={144} />
+            <h1 id="empty-product-title">아직 등록된 제품이 없어요</h1>
+            <p>
               제품을 등록하면 정품 인증부터
               <br />
               나만의 소유 여정 기록이 시작돼요.
             </p>
-          </div>
+          </section>
 
-          <Link className="cta-dark cta-dark--empty" to="/register">
+          <Link to="/register" className="cta-dark empty-product-cta">
             <span className="cta-dark__copy">
               <span className="cta-dark__sub">MCM과 함께 여정을 시작해볼까요?</span>
               <span className="cta-dark__title">제품 등록하러 가기</span>
             </span>
             <img className="cta-dark__arrow" src={ctaArrow} alt="" width={50} height={50} />
           </Link>
-        </div>
+        </main>
       </AppShell>
     )
   }
 
   return (
     <AppShell hideHeader>
-      <div className="page page--main">
-        <div className="main-brand">
-          <img className="main-brand__logo" src={logo} alt="M·Carry" width={131} height={39} />
-          <p className="main-brand__tagline">Carry the Moment, Share the Value</p>
+      <main className="page page--main">
+        <div className="empty-product-brand main-dashboard-brand">
+          <img src={logo} alt="M·Carry" width={133} height={40} />
+          <p>Carry the Moment, Share the Value</p>
         </div>
 
-        <div className="main-track" ref={trackRef}>
+        <div
+          className="main-track"
+          ref={trackRef}
+        >
           {catalog.map((item, slideIndex) => {
-            const generationId =
-              generationByProduct[item.id] ??
-              item.generations[1]?.id ??
-              item.generations[0]?.id
-
             return (
               <OverviewSlide
                 key={item.id}
                 product={item}
-                generationId={generationId}
-                onGeneration={(id) =>
-                  setGenerationByProduct((prev) => ({ ...prev, [item.id]: id }))
-                }
-                countryId={countryId}
-                countryLabel={countryLabel}
-                countryOpen={countryOpen && item.id === product.id}
-                onToggleCountry={() => setCountryOpen((v) => !v)}
-                onSelectCountry={(id) => {
-                  setCountryId(id)
-                  setCountryOpen(false)
-                }}
-                mapExpanded={mapExpanded && item.id === product.id}
-                onToggleMap={() => setMapExpanded((v) => !v)}
                 catalog={catalog}
                 productIndex={productIndex}
                 onDotClick={scrollToIndex}
                 showDots={slideIndex === productIndex}
+                swipeHandlers={{
+                  onPointerDown: startCardSwipe,
+                  onPointerMove: moveCardSwipe,
+                  onPointerUp: endCardSwipe,
+                  onPointerCancel: endCardSwipe,
+                }}
               />
             )
           })}
         </div>
-      </div>
+
+        <ProductJourneyDetails
+          product={product}
+          generationIndex={Math.min(generationIndex, product.generations.length - 1)}
+          onGeneration={setGenerationIndex}
+          countryId={countryId}
+          countryOpen={countryOpen}
+          onToggleCountry={() => setCountryOpen((open) => !open)}
+          onSelectCountry={(id) => {
+            setCountryId(id)
+          }}
+          mapExpanded={mapExpanded}
+          onToggleMap={() => setMapExpanded((expanded) => !expanded)}
+        />
+
+        <Link
+          className="main-journey-add-button"
+          to={`/journey/new?productId=${encodeURIComponent(product.id)}`}
+        >
+          <span>여정 기록하기</span>
+          <img
+            className="main-journey-add-button__arrow"
+            src={ctaArrow}
+            alt=""
+            width={50}
+            height={50}
+          />
+        </Link>
+      </main>
     </AppShell>
   )
 }
