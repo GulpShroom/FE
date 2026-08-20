@@ -1,15 +1,23 @@
-import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { AppShell } from '../../components/AppShell'
-import { currentUser, journeys, products } from '../../data/mock'
-import productBag from '../../assets/final/product-bag.png'
-import planeTip from '../../assets/final/plane-tip-clear.png'
+import { currentUser, products } from '../../data/mock'
+import planeTip from '../../assets/final/progress-plane.png'
 import cameraIcon from '../../assets/final/camera.svg'
+import checkCircleIcon from '../../assets/final/resell-check-circle.svg'
+import documentAddIcon from '../../assets/final/resell-document-add.svg'
+import selectedCheckIcon from '../../assets/final/resell-selected-check.svg'
+import messageHelperRing from '../../assets/final/resell-message-helper.svg'
+import messageHelperMark from '../../assets/final/resell-message-connector.svg'
+import previewImageIcon from '../../assets/final/resell-preview-image.svg'
+import previewChevronIcon from '../../assets/final/resell-preview-chevron.svg'
+import { resellProductDummies } from '../../data/resellDummies'
 
 const steps = [
   'select',
   'guide',
   'info',
+  'defaults',
   'share',
   'optional',
   'letter',
@@ -23,6 +31,7 @@ const STEP_OF_6 = {
   select: 1,
   guide: 1,
   info: 2,
+  defaults: 3,
   share: 3,
   optional: 3,
   letter: 4,
@@ -40,36 +49,107 @@ const CONDITIONS = [
 const AI_LETTER =
   '안녕하세요. 이 가방과 함께한 시간들이 따뜻했습니다. 다음 주인님께도 좋은 여정이 이어지길 바랍니다.'
 
+const SHARE_JOURNEYS = [
+  {
+    title: '첫 세탁의 기억',
+    body: '처음으로 드라이클리닝을 맡겼을 때의 조심스러움. 원단이 상하지 않게 신경 썼던 기억이 납니다.',
+    situations: ['사과', '바나나', '포도'],
+  },
+  {
+    title: '특별한 날의 착용',
+    body: '친한 친구의 결혼식 날 착용했던 특별한 기억. 좋은 자리에 함께했던 옷입니다.',
+    situations: ['결혼식', '친구', '기념일'],
+  },
+  {
+    title: '단추 수선 완료',
+    body: '떨어질 뻔한 단추를 비슷한 색상의 실로 튼튼하게 다시 달았습니다.',
+    situations: ['단추', '수선', '관리'],
+  },
+]
+
 export default function ResellCreatePage() {
   const navigate = useNavigate()
-  const [step, setStep] = useState(0)
-  const [productId, setProductId] = useState(products[0]?.id ?? '')
+  const location = useLocation()
+  const returnStep = steps.indexOf(location.state?.resellStep)
+  const [step, setStep] = useState(returnStep >= 0 ? returnStep : 0)
+  const [productId, setProductId] = useState(
+    location.state?.resellProductId ?? products[0]?.id ?? '',
+  )
   const [price, setPrice] = useState('')
   const [condition, setCondition] = useState('S')
-  const [photos, setPhotos] = useState([false, false, false])
-  const [selectedJourneys, setSelectedJourneys] = useState(() =>
-    journeys.filter((j) => j.productId === products[0]?.id).map((j) => j.id),
-  )
-  const [letter, setLetter] = useState('')
-  const [careTip, setCareTip] = useState('')
+  const [photos, setPhotos] = useState([null, null, null])
+  const [photoSlot, setPhotoSlot] = useState(0)
+  const photoInputRef = useRef(null)
+  const [letter, setLetter] = useState(location.state?.resellLetter ?? '')
+  const [careTip, setCareTip] = useState(location.state?.resellCareTip ?? '')
   const [includeLetter, setIncludeLetter] = useState(true)
   const [includeCare, setIncludeCare] = useState(false)
+  const [aiPromptOpen, setAiPromptOpen] = useState(false)
+  const [shareSelections, setShareSelections] = useState(
+    location.state?.resellShareSelections ?? [0],
+  )
+  const [situationSelections, setSituationSelections] = useState(
+    location.state?.resellSituationSelections ?? [],
+  )
 
   const product = products.find((p) => p.id === productId) ?? products[0]
   const productIndex = products.findIndex((p) => p.id === productId)
-  const productJourneys = useMemo(
-    () => journeys.filter((j) => j.productId === productId),
-    [productId],
-  )
+  const selectProductIndex = Math.max(0, Math.min(productIndex, resellProductDummies.length - 1))
+  const selectProductDetails = resellProductDummies[selectProductIndex]
   const key = steps[step]
+  const isContentEdit = Boolean(
+    location.state?.resellEditReturn && ['letter', 'care', 'share'].includes(key),
+  )
   const stepOf6 = STEP_OF_6[key] ?? 1
   const fillPct = `${(stepOf6 / 6) * 100}%`
   const conditionLabel =
     CONDITIONS.find((c) => c.id === condition)?.label.replace(/급.*/, '급') ?? 'A급'
 
+  useEffect(() => {
+    const resetScroll = () => {
+      const scroller = document.querySelector('.phone-shell__body')
+      if (scroller) {
+        scroller.scrollTop = 0
+        scroller.scrollLeft = 0
+      }
+      window.scrollTo(0, 0)
+      document.documentElement.scrollTop = 0
+      document.body.scrollTop = 0
+    }
+
+    resetScroll()
+    const frame = window.requestAnimationFrame(resetScroll)
+    const timer = window.setTimeout(resetScroll, 50)
+
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.clearTimeout(timer)
+    }
+  }, [step])
+
   const selectProduct = (id) => {
     setProductId(id)
-    setSelectedJourneys(journeys.filter((j) => j.productId === id).map((j) => j.id))
+  }
+
+  const openPhotoPicker = (index) => {
+    setPhotoSlot(index)
+    photoInputRef.current?.click()
+  }
+
+  const uploadPhoto = (event) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+
+    const photo = { file, url: URL.createObjectURL(file) }
+    setPhotos((previous) =>
+      previous.map((item, index) => (index === photoSlot ? photo : item)),
+    )
+
+    // API 연동 전 임시 AI 판정: 이미지 용량을 기준으로 추천 상태를 생성합니다.
+    if (file.size >= 5 * 1024 * 1024) setCondition('B')
+    else if (file.size >= 2 * 1024 * 1024) setCondition('A')
+    else setCondition('S')
   }
 
   const skipAdjust = (from, dir) => {
@@ -89,13 +169,32 @@ export default function ResellCreatePage() {
     return Math.max(0, Math.min(n, steps.length - 1))
   }
 
-  const next = () => setStep((s) => skipAdjust(s + 1, 1))
+  const next = () => {
+    if (location.state?.resellEditReturn && ['letter', 'care', 'share'].includes(key)) {
+      navigate(location.state.resellEditReturn, {
+        replace: true,
+        state: {
+          resellLetter: letter,
+          resellCareTip: careTip,
+          resellShareSelections: shareSelections,
+          resellSituationSelections: situationSelections,
+        },
+      })
+      return
+    }
+    setStep((s) => skipAdjust(s + 1, 1))
+  }
+  const generateAiLetter = () => {
+    // 실제 AI API 연동 시 이 함수의 본문만 API 호출로 교체합니다.
+    setLetter(AI_LETTER.slice(0, 200))
+    setAiPromptOpen(false)
+  }
   const back = () => {
     if (step === 0) navigate('/resell')
     else setStep((s) => skipAdjust(s - 1, -1))
   }
 
-  const progress = (
+  const progress = isContentEdit ? null : (
     <div className="reg-progress">
       <p className="reg-progress__label">Step {stepOf6} of 6</p>
       <div className="reg-progress__track">
@@ -106,15 +205,49 @@ export default function ResellCreatePage() {
           alt=""
           width={43}
           height={43}
-          style={{ left: `max(0px, calc(${fillPct} - 21px))`, right: 'auto' }}
+          style={{
+            left:
+              key === 'done'
+                ? 'calc(100% - 43px)'
+                : `max(0px, calc(${fillPct} - 21px))`,
+            right: 'auto',
+          }}
         />
       </div>
     </div>
   )
 
   return (
-    <AppShell showNav={false} showBack onBack={back}>
-      <div className="page form-stack">
+    <AppShell showNav={false} showBack={!isContentEdit} onBack={back}>
+      <div
+        className={`page form-stack page--resell-create${
+          key === 'select'
+            ? ' page--resell-create-select'
+            : key === 'guide'
+              ? ' page--resell-create-guide'
+              : key === 'info'
+                ? ' page--resell-create-info'
+                : key === 'defaults'
+                  ? ' page--resell-create-defaults'
+                  : key === 'share'
+                    ? ' page--resell-create-share'
+                    : key === 'optional'
+                      ? ' page--resell-create-optional'
+                      : key === 'letter'
+                        ? ' page--resell-create-letter'
+                        : key === 'care'
+                          ? ' page--resell-create-care'
+                          : key === 'confirm'
+                            ? ' page--resell-create-confirm'
+                            : key === 'done'
+                              ? ' page--resell-create-done'
+              : ''
+        }${isContentEdit ? ' page--resell-content-edit' : ''}`}
+        style={{
+          '--share-expanded': shareSelections.length,
+          '--confirm-reduction': `${(includeLetter ? 0 : 52) + (includeCare ? 0 : 199)}px`,
+        }}
+      >
         {key === 'select' ? (
           <>
             {progress}
@@ -128,45 +261,49 @@ export default function ResellCreatePage() {
                 type="button"
                 className="resell-overview"
                 onClick={() => {
-                  const nextId = products[(productIndex + 1) % products.length]?.id
+                  const nextId = resellProductDummies[
+                    (selectProductIndex + 1) % resellProductDummies.length
+                  ]?.productId
                   if (nextId) selectProduct(nextId)
                 }}
               >
                 <div className="resell-overview__inner">
                   <p className="resell-overview__eyebrow">Journey Overview</p>
-                  <p className="resell-overview__alias">{product.alias}</p>
+                  <p className="resell-overview__alias">{selectProductDetails.alias}</p>
                   <div className="resell-overview__meta">
                     <span>정품 인증 완료</span>
-                    <span>{product.journeyCount}개의 여정 기록</span>
+                    <span>{selectProductDetails.journeyCount}개의 여정 기록</span>
                   </div>
-                  <img
-                    className="resell-overview__stamp"
-                    src={product.stamp}
-                    alt=""
-                    width={160}
-                    height={160}
-                  />
-                  <p className="resell-overview__score">{product.careScore ?? 87}</p>
+                  <span className="resell-overview__stamp-box" aria-hidden="true">
+                    <img
+                      className="resell-overview__stamp"
+                      src={product.stamp}
+                      alt=""
+                      width={168}
+                      height={168}
+                    />
+                  </span>
+                  <p className="resell-overview__score">{selectProductDetails.score}</p>
                 </div>
               </button>
             </div>
 
             <div className="passport-rail" aria-label="제품 선택">
-              {products.map((p, i) =>
-                i === productIndex ? (
+              {resellProductDummies.map((dummy, i) =>
+                i === selectProductIndex ? (
                   <span
-                    key={p.id}
+                    key={dummy.id}
                     className="passport-rail__pill"
                     style={{ background: 'var(--mc-green)' }}
                   />
                 ) : (
                   <button
-                    key={p.id}
+                    key={dummy.id}
                     type="button"
                     className="passport-rail__dot"
                     style={{ background: 'var(--mc-green)', border: 0, padding: 0 }}
-                    onClick={() => selectProduct(p.id)}
-                    aria-label={p.alias}
+                    onClick={() => selectProduct(dummy.productId)}
+                    aria-label={`${dummy.alias} 선택`}
                   />
                 ),
               )}
@@ -176,9 +313,7 @@ export default function ResellCreatePage() {
               <p className="resell-inherit__label">계승 정보</p>
               <div className="resell-inherit__box">
                 <span>이전 소유자</span>
-                <strong>
-                  {Math.max(0, (product?.generations?.length ?? 1) - 1)}명
-                </strong>
+                <strong>{selectProductDetails.previousOwnerCount}명</strong>
               </div>
             </div>
 
@@ -235,23 +370,28 @@ export default function ResellCreatePage() {
               </div>
             </div>
 
-            <div className="resell-field">
+            <div className="resell-field resell-field--photos">
               <p className="resell-field__label">
                 실물 사진 등록 <em>*</em>
               </p>
               <div className="resell-photos">
-                {photos.map((filled, i) => (
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  onChange={uploadPhoto}
+                />
+                {photos.map((photo, i) => (
                   <button
                     key={i}
                     type="button"
-                    className={`resell-photo${i === 0 && !filled ? ' is-upload' : ''}${filled ? ' is-filled' : ''}`}
-                    onClick={() =>
-                      setPhotos((prev) => prev.map((v, idx) => (idx === i ? !v : v)))
-                    }
-                    aria-label={filled ? '사진 제거' : '사진 추가'}
+                    className={`resell-photo${i === 0 && !photo ? ' is-upload' : ''}${photo ? ' is-filled' : ''}`}
+                    onClick={() => openPhotoPicker(i)}
+                    aria-label={photo ? '사진 변경' : '사진 추가'}
                   >
-                    {filled ? (
-                      <img src={productBag} alt="" width={72} height={72} />
+                    {photo ? (
+                      <img src={photo.url} alt="업로드한 상품" width={96} height={96} />
                     ) : i === 0 ? (
                       <img
                         className="resell-photo__cam"
@@ -267,7 +407,7 @@ export default function ResellCreatePage() {
               <p className="resell-field__hint">최소 1장 이상의 사진이 필요합니다.</p>
             </div>
 
-            <div className="resell-field">
+            <div className="resell-field resell-field--condition">
               <p className="resell-field__label">
                 상품 상태 <em>*</em>
               </p>
@@ -291,7 +431,7 @@ export default function ResellCreatePage() {
               </div>
             </div>
 
-            <div className="resell-field">
+            <div className="resell-field resell-field--price">
               <p className="resell-field__label">
                 판매 가격 <em>*</em>
               </p>
@@ -312,6 +452,85 @@ export default function ResellCreatePage() {
           </>
         ) : null}
 
+        {key === 'defaults' ? (
+          <>
+            {progress}
+            <h1 className="resell-defaults__title">디폴트 공개 설정</h1>
+
+            <article className="resell-defaults-summary">
+              <div className="resell-defaults-summary__inner">
+                <p className="resell-defaults-summary__alias">{selectProductDetails.alias}</p>
+                <div className="resell-defaults-summary__facts">
+                  {[
+                    'MCM 정품 인증 완료',
+                    '3명의 주인 / 8개 도시 / 4년 여정',
+                    '전체 여정의 88% 검증 완료',
+                  ].map((fact) => (
+                    <p key={fact}>
+                      <img src={checkCircleIcon} alt="" width={14} height={14} />
+                      <span>{fact}</span>
+                    </p>
+                  ))}
+                </div>
+                <span className="resell-defaults-summary__stamp-box" aria-hidden="true">
+                  <img src={product.stamp} alt="" width={168} height={168} />
+                </span>
+                <p className="resell-defaults-summary__score">{selectProductDetails.score}</p>
+              </div>
+            </article>
+
+            <section className="resell-diagnosis">
+              <h2>n대별 진단 이력</h2>
+              {['1st keeper', '2nd keeper'].map((keeper) => (
+                <article className="resell-diagnosis__card" key={keeper}>
+                  <span className="resell-diagnosis__keeper">{keeper}</span>
+                  <dl>
+                    <div>
+                      <dt>진단 날짜</dt>
+                      <dd>2023. 10. 26</dd>
+                    </div>
+                    <div>
+                      <dt>진단 결과</dt>
+                      <dd>탈모 진행 초기 (M자형)</dd>
+                    </div>
+                    <div className="resell-diagnosis__solution">
+                      <dt>솔루션</dt>
+                      <dd>
+                        두피 스케일링 및 영양 앰플 집중 케어 권장.<br />
+                        스트레스 관리 및 충분한 수면 필요
+                      </dd>
+                    </div>
+                  </dl>
+                </article>
+              ))}
+
+              <article className="resell-diagnosis__empty">
+                <img src={documentAddIcon} alt="" width={48} height={48} />
+                <strong>진단 이력이 없을 경우</strong>
+                <p>없어도 계속 진행 가능합니다.</p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate(`/my/products/${product.id}/ai`, {
+                      state: {
+                        fromResell: true,
+                        resellStep: 'defaults',
+                        resellProductId: product.id,
+                      },
+                    })
+                  }
+                >
+                  진단하러 가기
+                </button>
+              </article>
+            </section>
+
+            <button type="button" className="resell-next" onClick={next}>
+              다음
+            </button>
+          </>
+        ) : null}
+
         {key === 'share' ? (
           <>
             {progress}
@@ -322,7 +541,8 @@ export default function ResellCreatePage() {
 
             <div className="resell-share-card">
               <p>
-                등록하신 제품의 여정 기록 {productJourneys.length}개 중 AI가 선별한 핵심
+                등록하신 제품의 여정 기록 32개 중 AI가 선별한 핵심
+                <br />
                 회고와 태그가 구매자에게 전달됩니다.
               </p>
               <button type="button" className="resell-share-card__preview">
@@ -339,36 +559,71 @@ export default function ResellCreatePage() {
             </p>
 
             <div className="resell-journey-opts">
-              {productJourneys.map((j) => {
-                const on = selectedJourneys.includes(j.id)
-                const title = j.quote.replace(/[“”"]/g, '')
+              {SHARE_JOURNEYS.map((journey, index) => {
+                const on = shareSelections.includes(index)
                 return (
-                  <label key={j.id} className={`resell-journey-opt${on ? ' is-on' : ''}`}>
+                  <div
+                    key={journey.title}
+                    className={`resell-journey-opt${on ? ' is-on' : ''}${index === 0 ? ' resell-journey-opt--featured' : ''}`}
+                  >
                     <input
                       type="checkbox"
                       checked={on}
-                      onChange={(e) => {
-                        setSelectedJourneys((prev) =>
-                          e.target.checked
-                            ? [...prev, j.id]
-                            : prev.filter((id) => id !== j.id),
-                        )
-                      }}
+                      onChange={() => {}}
+                      aria-label={`${journey.title} 공유`}
                     />
-                    <span className="resell-journey-opt__box" aria-hidden>
-                      {on ? '✓' : ''}
-                    </span>
-                    <div>
-                      <strong>{title}</strong>
-                      <p>{j.body}</p>
+                    <button
+                      type="button"
+                      className="resell-journey-opt__toggle"
+                      onClick={() =>
+                        setShareSelections((previous) =>
+                          previous.includes(index)
+                            ? previous.filter((item) => item !== index)
+                            : [...previous, index],
+                        )
+                      }
+                      aria-label={`${journey.title} ${on ? '선택 해제' : '선택'}`}
+                    >
+                      <span className="resell-journey-opt__box" aria-hidden>
+                        {on ? <img src={selectedCheckIcon} alt="" width={20} height={20} /> : null}
+                      </span>
+                      <strong>{journey.title}</strong>
+                    </button>
+                    {on ? (
+                      <div className="resell-journey-opt__situations">
+                        <span>상황</span>
+                        {journey.situations.map((situation) => {
+                          const selectionKey = `${index}-${situation}`
+                          return (
+                          <label key={situation}>
+                            <input
+                              type="checkbox"
+                              checked={situationSelections.includes(selectionKey)}
+                              onChange={(event) =>
+                                setSituationSelections((previous) =>
+                                  event.target.checked
+                                    ? [...previous, selectionKey]
+                                    : previous.filter((item) => item !== selectionKey),
+                                )
+                              }
+                            />
+                            <i aria-hidden />
+                            {situation}
+                          </label>
+                          )
+                        })}
+                      </div>
+                    ) : null}
+                    <div className="resell-journey-opt__copy">
+                      <p>{journey.body}</p>
                     </div>
-                  </label>
+                  </div>
                 )
               })}
             </div>
 
             <button type="button" className="resell-next" onClick={next}>
-              다음
+              {isContentEdit ? '수정하기' : '다음'}
             </button>
           </>
         ) : null}
@@ -388,7 +643,9 @@ export default function ResellCreatePage() {
               onClick={() => setIncludeLetter((v) => !v)}
             >
               <span className="resell-opt-card__check" aria-hidden>
-                {includeLetter ? '✓' : ''}
+                {includeLetter ? (
+                  <img src={selectedCheckIcon} alt="" width={16} height={16} />
+                ) : null}
               </span>
               <div>
                 <strong>Letter</strong>
@@ -403,7 +660,9 @@ export default function ResellCreatePage() {
               onClick={() => setIncludeCare((v) => !v)}
             >
               <span className="resell-opt-card__check" aria-hidden>
-                {includeCare ? '✓' : ''}
+                {includeCare ? (
+                  <img src={selectedCheckIcon} alt="" width={16} height={16} />
+                ) : null}
               </span>
               <div>
                 <strong>Care Tips</strong>
@@ -440,18 +699,37 @@ export default function ResellCreatePage() {
               />
             </div>
             <div className="resell-compose__bar">
-              <button
-                type="button"
-                className="resell-compose__ai"
-                onClick={() => setLetter(AI_LETTER.slice(0, 200))}
-              >
-                AI로 초안 만들기
-              </button>
               <span className="resell-compose__count">{letter.length}/200</span>
             </div>
 
+            <div
+              className="resell-ai-helper-area"
+              onMouseEnter={() => setAiPromptOpen(true)}
+              onMouseLeave={() => setAiPromptOpen(false)}
+            >
+              {aiPromptOpen ? (
+                <button
+                  type="button"
+                  className="resell-compose__ai"
+                  onClick={generateAiLetter}
+                >
+                  AI로 초안 만들기
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className="resell-message-helper"
+                onClick={() => setAiPromptOpen((open) => !open)}
+                aria-label="AI 초안 메뉴"
+                aria-expanded={aiPromptOpen}
+              >
+                <img className="resell-message-helper__ring" src={messageHelperRing} alt="" />
+                <img className="resell-message-helper__mark" src={messageHelperMark} alt="" />
+              </button>
+            </div>
+
             <button type="button" className="resell-next" onClick={next}>
-              다음
+              {isContentEdit ? '수정하기' : '다음'}
             </button>
           </>
         ) : null}
@@ -465,7 +743,7 @@ export default function ResellCreatePage() {
               케어팁을 남겨주세요.
             </h1>
             <p className="resell-create__sub">
-              오래도록 잘 사용하기 위한 나만의 팁을 작성해주세요.
+              오래도록 잘 사용하기 위한 나만의 팁을 작성헤주세요.
             </p>
 
             <div className="resell-compose">
@@ -481,7 +759,7 @@ export default function ResellCreatePage() {
             </p>
 
             <button type="button" className="resell-next" onClick={next}>
-              다음
+              {isContentEdit ? '수정하기' : '다음'}
             </button>
           </>
         ) : null}
@@ -497,14 +775,49 @@ export default function ResellCreatePage() {
             </p>
 
             <p className="resell-preview-label">서사 프리뷰</p>
-            <article className="resell-preview">
+            <article
+              className={`resell-preview${includeLetter ? '' : ' resell-preview--no-letter'}${includeCare ? '' : ' resell-preview--no-care'}`}
+            >
+              <div className="resell-overview resell-preview__overview">
+                <div className="resell-overview__inner">
+                  <p className="resell-overview__eyebrow">Brand Name</p>
+                  <p className="resell-overview__alias">{selectProductDetails.alias}</p>
+                  <div className="resell-overview__meta">
+                    <span>정품 인증 완료</span>
+                    <span>{selectProductDetails.journeyCount}개의 여정 기록</span>
+                  </div>
+                  <span className="resell-overview__stamp-box" aria-hidden="true">
+                    <img
+                      className="resell-overview__stamp"
+                      src={product.stamp}
+                      alt=""
+                      width={168}
+                      height={168}
+                    />
+                  </span>
+                  <p className="resell-overview__score">{selectProductDetails.score}</p>
+                </div>
+              </div>
+
               <div className="resell-preview__photos">
                 {[0, 1, 2].map((i) => (
                   <div key={i} className="resell-preview__photo">
                     {photos[i] ? (
-                      <img src={productBag} alt="" width={48} height={48} />
+                      <img
+                        className="resell-preview__uploaded-photo"
+                        src={photos[i].url}
+                        alt={`업로드한 상품 사진 ${i + 1}`}
+                        width={93}
+                        height={89}
+                      />
                     ) : (
-                      <span className="resell-preview__photo-empty" aria-hidden />
+                      <img
+                        className="resell-preview__photo-placeholder"
+                        src={previewImageIcon}
+                        alt=""
+                        width={48}
+                        height={48}
+                      />
                     )}
                   </div>
                 ))}
@@ -512,7 +825,7 @@ export default function ResellCreatePage() {
 
               <div className="resell-preview__price-row">
                 <p className="resell-preview__price">
-                  {price ? `${price}원` : '가격 미입력'}
+                  {price ? `${Number(price.replace(/,/g, '')).toLocaleString()}원` : '150,000원'}
                 </p>
                 <span className="resell-preview__badge">상태 {conditionLabel}</span>
               </div>
@@ -525,20 +838,31 @@ export default function ResellCreatePage() {
               </div>
 
               {includeLetter ? (
-                <div className="resell-preview__row">
-                  Letter (구매자에게만 공개됩니다.)
+                <div className="resell-preview__row resell-preview__row--letter">
+                  Letter (구매·계승한 사람에게만 공개됩니다.)
                 </div>
               ) : null}
               {includeCare ? (
-                <div className="resell-preview__row resell-preview__row--tall">Care Tips</div>
-              ) : null}
-              {selectedJourneys.length > 0 ? (
-                <div className="resell-preview__row">
-                  <span>Journey Log</span>
-                  <span className="resell-preview__chev" aria-hidden>
-                    ›
-                  </span>
+                <div className="resell-preview__row resell-preview__row--tall resell-preview__row--care">
+                  <span>Care Tips</span>
+                  <p>{careTip || '작성한 케어팁이 없습니다.'}</p>
                 </div>
+              ) : null}
+              {shareSelections.length > 0 ? (
+                <button
+                  type="button"
+                  className="resell-preview__row resell-preview__row--journey resell-preview__row--btn"
+                  onClick={() => setStep(steps.indexOf('share'))}
+                >
+                  <span>Journey Log</span>
+                  <img
+                    className="resell-preview__chev"
+                    src={previewChevronIcon}
+                    alt=""
+                    width={24}
+                    height={24}
+                  />
+                </button>
               ) : null}
             </article>
 
