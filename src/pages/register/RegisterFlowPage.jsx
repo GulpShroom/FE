@@ -69,6 +69,19 @@ function DarkCta({ sub, title, onClick, multiline = false, disabled = false }) {
   )
 }
 
+function getCameraErrorMessage(error) {
+  if (error?.name === 'NotAllowedError') {
+    return 'QR 스캔을 사용하려면 브라우저의 카메라 권한을 허용해 주세요.'
+  }
+  if (error?.name === 'NotFoundError') {
+    return '사용할 수 있는 카메라를 찾지 못했습니다.'
+  }
+  if (error?.name === 'NotReadableError' || /device in use/i.test(error?.message || '')) {
+    return '다른 앱이나 브라우저에서 카메라를 사용 중입니다. 카메라를 사용하는 화면을 닫고 다시 시도해 주세요.'
+  }
+  return error?.message || '카메라를 시작하지 못했습니다.'
+}
+
 function QrScanner({ onDetected, onError, disabled }) {
   const videoRef = useRef(null)
   const detectedRef = useRef(false)
@@ -78,11 +91,76 @@ function QrScanner({ onDetected, onError, disabled }) {
 
     let stream
     let animationFrame
+    let scannerControls
     let cancelled = false
 
     const stopCamera = () => {
-      window.cancelAnimationFrame(animationFrame)
+      if (animationFrame) window.cancelAnimationFrame(animationFrame)
+      scannerControls?.stop()
       stream?.getTracks().forEach((track) => track.stop())
+      if (videoRef.current) videoRef.current.srcObject = null
+    }
+
+    const completeDetection = (rawValue) => {
+      const qrCode = rawValue?.trim()
+      if (!qrCode || cancelled || detectedRef.current) return
+
+      detectedRef.current = true
+      stopCamera()
+      onDetected(qrCode)
+    }
+
+    const startNativeScanner = async () => {
+      const detector = new window.BarcodeDetector({ formats: ['qr_code'] })
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: { ideal: 'environment' } },
+      })
+      if (cancelled || !videoRef.current) {
+        stopCamera()
+        return
+      }
+
+      videoRef.current.srcObject = stream
+      await videoRef.current.play()
+
+      const detect = async () => {
+        if (cancelled || detectedRef.current || !videoRef.current) return
+        try {
+          const codes = await detector.detect(videoRef.current)
+          const code = codes.find((item) => item.rawValue?.trim())
+          if (code) {
+            completeDetection(code.rawValue)
+            return
+          }
+        } catch {
+          // The video may not have a decodable frame yet; keep scanning.
+        }
+        animationFrame = window.requestAnimationFrame(detect)
+      }
+
+      animationFrame = window.requestAnimationFrame(detect)
+    }
+
+    const startFallbackScanner = async () => {
+      const { BrowserQRCodeReader } = await import('@zxing/browser')
+      if (cancelled || !videoRef.current) return
+
+      const reader = new BrowserQRCodeReader()
+      scannerControls = await reader.decodeFromConstraints(
+        {
+          audio: false,
+          video: { facingMode: { ideal: 'environment' } },
+        },
+        videoRef.current,
+        (result, _error, controls) => {
+          if (!result) return
+          scannerControls = controls
+          completeDetection(result.getText())
+        },
+      )
+
+      if (cancelled) stopCamera()
     }
 
     const startCamera = async () => {
@@ -90,43 +168,21 @@ function QrScanner({ onDetected, onError, disabled }) {
         if (!navigator.mediaDevices?.getUserMedia) {
           throw new Error('이 브라우저에서는 카메라를 사용할 수 없습니다.')
         }
-        if (!window.BarcodeDetector) {
-          throw new Error('이 브라우저에서는 QR 코드 인식을 지원하지 않습니다.')
-        }
 
-        const detector = new window.BarcodeDetector({ formats: ['qr_code'] })
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: false,
-          video: { facingMode: { ideal: 'environment' } },
-        })
-        if (cancelled || !videoRef.current) {
-          stopCamera()
-          return
-        }
-
-        videoRef.current.srcObject = stream
-        await videoRef.current.play()
-
-        const detect = async () => {
-          if (cancelled || detectedRef.current || !videoRef.current) return
+        let supportsNativeQr = Boolean(window.BarcodeDetector)
+        if (window.BarcodeDetector?.getSupportedFormats) {
           try {
-            const codes = await detector.detect(videoRef.current)
-            const qrCode = codes.find((code) => code.rawValue?.trim())?.rawValue.trim()
-            if (qrCode) {
-              detectedRef.current = true
-              stopCamera()
-              onDetected(qrCode)
-              return
-            }
+            const supportedFormats = await window.BarcodeDetector.getSupportedFormats()
+            supportsNativeQr = supportedFormats.includes('qr_code')
           } catch {
-            // The video may not have a decodable frame yet; keep scanning.
+            supportsNativeQr = false
           }
-          animationFrame = window.requestAnimationFrame(detect)
         }
 
-        animationFrame = window.requestAnimationFrame(detect)
+        if (supportsNativeQr) await startNativeScanner()
+        else await startFallbackScanner()
       } catch (error) {
-        if (!cancelled) onError(error.message || '카메라를 시작하지 못했습니다.')
+        if (!cancelled) onError(getCameraErrorMessage(error))
       }
     }
 
