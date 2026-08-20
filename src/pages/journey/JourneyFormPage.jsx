@@ -339,6 +339,10 @@ export default function JourneyFormPage() {
   }
 
   const goBack = () => {
+    if (searchParams.get('from') === 'map') {
+      navigate('/main?map=expanded')
+      return
+    }
     if (isEdit) {
       navigate(
         `/journey/entry/${id}?productId=${encodeURIComponent(form.productId || seedProductId)}`,
@@ -601,7 +605,13 @@ export default function JourneyFormPage() {
             <button
               type="button"
               className="btn-modal-pill"
-              onClick={() => navigate(recordsPath)}
+              onClick={() => {
+                if (searchParams.get('from') === 'map') {
+                  navigate('/main?map=expanded')
+                  return
+                }
+                navigate(recordsPath)
+              }}
             >
               닫기
             </button>
