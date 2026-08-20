@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { AppShell } from '../../components/AppShell'
 import { LeafletJourneyMap } from '../../components/LeafletJourneyMap'
+import { MapJourneyDetailOverlay } from '../../components/MapJourneyDetailOverlay'
 import { useProfile } from '../../context/ProfileContext'
 import { getProductJourneys } from '../../api/journeys'
 import {
@@ -97,10 +98,21 @@ function ProductJourneyDetails({
   isLoading,
   error,
   onRetry,
+  userId,
 }) {
   const [countryQuery, setCountryQuery] = useState('')
   const [countrySearchOpen, setCountrySearchOpen] = useState(false)
+  const [selectedMarker, setSelectedMarker] = useState(null)
   const normalizedQuery = countryQuery.trim().toLocaleLowerCase('ko-KR')
+
+  useEffect(() => {
+    if (!mapExpanded) setSelectedMarker(null)
+  }, [mapExpanded])
+
+  useEffect(() => {
+    setSelectedMarker(null)
+  }, [generationIndex, product.id])
+
   const filteredCountries = searchableCountries.filter((country) => (
     !normalizedQuery || country.label.toLocaleLowerCase('ko-KR').includes(normalizedQuery)
   ))
@@ -110,6 +122,27 @@ function ProductJourneyDetails({
       countries: group.countries.filter((country) => filteredCountries.includes(country)),
     }))
     .filter((group) => group.countries.length > 0)
+
+  const selectedGeneration = product.generations[generationIndex]
+  const mapPoints = useMemo(() => {
+    const rows = product.mapCounts ?? []
+    if (!selectedGeneration) return rows
+    return rows.filter((marker) => {
+      const markerGen = marker.generation ?? marker.generationId ?? marker.ownershipId
+      if (markerGen == null || markerGen === '') return true
+      return (
+        String(markerGen) === String(selectedGeneration.generation)
+        || String(markerGen) === String(selectedGeneration.id)
+        || String(markerGen) === String(generationIndex + 1)
+      )
+    })
+  }, [generationIndex, product.mapCounts, selectedGeneration])
+
+  const openJourneyDetail = (point) => {
+    const journeyId = point?.journeyId ?? point?.id ?? point?.journey_id
+    if (journeyId == null || journeyId === '') return
+    setSelectedMarker({ ...point, journeyId })
+  }
 
   const selectMapCountry = (country) => {
     onSelectCountry(country.id)
@@ -136,16 +169,44 @@ function ProductJourneyDetails({
   }
 
   if (mapExpanded) {
+    const selectedJourneyId = selectedMarker?.journeyId
     return (
       <section className="expanded-map-view" aria-label="확대된 여정 지도">
         <header className="expanded-map__header">
-          <button type="button" onClick={onToggleMap} aria-label="지도 닫기">
+          <button
+            type="button"
+            onClick={() => {
+              if (selectedJourneyId != null && selectedJourneyId !== '') {
+                setSelectedMarker(null)
+                return
+              }
+              onToggleMap()
+            }}
+            aria-label={
+              selectedJourneyId != null && selectedJourneyId !== ''
+                ? '여정 상세 닫기'
+                : '지도 닫기'
+            }
+          >
             <img src={backIcon} alt="" width={30} height={30} />
           </button>
           <img className="expanded-map__logo" src={logo} alt="M·Carry" width={133} height={40} />
         </header>
         <div className="expanded-map__canvas">
-          <LeafletJourneyMap points={product.mapCounts} countryId={countryId} />
+          <LeafletJourneyMap
+            points={mapPoints}
+            countryId={countryId}
+            onMarkerClick={openJourneyDetail}
+          />
+          {selectedJourneyId != null && selectedJourneyId !== '' ? (
+            <MapJourneyDetailOverlay
+              journeyId={selectedJourneyId}
+              productId={product.id}
+              userId={userId}
+              preview={selectedMarker}
+              onClose={() => setSelectedMarker(null)}
+            />
+          ) : null}
         </div>
       </section>
     )
@@ -260,7 +321,7 @@ function ProductJourneyDetails({
 
           <div className="map-panel__body">
             <LeafletJourneyMap
-              points={product.mapCounts}
+              points={mapPoints}
               countryId={countryId}
             />
           </div>
@@ -270,7 +331,7 @@ function ProductJourneyDetails({
 }
 
 export default function MainPage() {
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { profile } = useProfile()
   const profileId = profile?.userId ?? profile?.id
   const forceEmpty = searchParams.get('empty') === '1'
@@ -301,6 +362,9 @@ export default function MainPage() {
   const [countryId, setCountryId] = useState('all')
   const [mapExpanded, setMapExpanded] = useState(() => searchParams.get('map') === 'expanded')
 
+  useEffect(() => {
+    setMapExpanded(searchParams.get('map') === 'expanded')
+  }, [searchParams])
   useEffect(() => {
     if (forceEmpty || missingProfileId) return undefined
     let cancelled = false
@@ -351,6 +415,7 @@ export default function MainPage() {
         const rawGenerations = lineageData?.generations ?? journeyData?.generations ?? []
         const generations = rawGenerations.map((generation, index) => ({
           id: generation.ownershipId ?? generation.id ?? generation.generation ?? index + 1,
+          generation: generation.generation ?? index + 1,
           label: String(
             generation.keeperLabel
               || generation.label
@@ -368,9 +433,10 @@ export default function MainPage() {
             Number.isFinite(journey.latitude) && Number.isFinite(journey.longitude)
           ))
         const mapCounts = rawMarkers.map((marker) => {
-          const journey = journeyById.get(String(marker.journeyId)) ?? {}
+          const journey = journeyById.get(String(marker.journeyId ?? marker.id)) ?? {}
           return {
             ...marker,
+            journeyId: marker.journeyId ?? marker.id ?? journey.journeyId ?? journey.id,
             country: toMapCountryId(marker.country || journey.country),
             latitude: marker.latitude ?? journey.latitude,
             longitude: marker.longitude ?? journey.longitude,
@@ -587,9 +653,19 @@ export default function MainPage() {
             setCountryId(id)
           }}
           mapExpanded={mapExpanded}
-          onToggleMap={() => setMapExpanded((expanded) => !expanded)}
+          onToggleMap={() => {
+            setMapExpanded((expanded) => {
+              const next = !expanded
+              const params = new URLSearchParams(searchParams)
+              if (next) params.set('map', 'expanded')
+              else params.delete('map')
+              setSearchParams(params, { replace: true })
+              return next
+            })
+          }}
           isLoading={detailsLoading}
           error={detailsError}
+          userId={profileId}
           onRetry={() => {
             setDetailsLoadedProductId(null)
             setDetailsFailure(null)
