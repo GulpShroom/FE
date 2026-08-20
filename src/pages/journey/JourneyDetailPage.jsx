@@ -24,6 +24,7 @@ export default function JourneyDetailPage() {
   const navigate = useNavigate()
   const { profile } = useProfile()
   const productIdParam = searchParams.get('productId') || ''
+  const fromMap = searchParams.get('from') === 'map'
   const [journey, setJourney] = useState(() => {
     const cached = getCachedJourney(id)
     return (
@@ -54,8 +55,8 @@ export default function JourneyDetailPage() {
     getJourney(id, { userId: profile.id })
       .then((data) => {
         if (cancelled || !data) return
-        // 타 세대(다른 키퍼) 여정은 조회 불가
-        if (data.isAuthor === false) {
+        // 지도에서 온 경우: 타 키퍼 여정도 상세 표시
+        if (data.isAuthor === false && !fromMap) {
           setLoadError('다른 키퍼가 등록한 여정은 볼 수 없습니다.')
           setJourney((prev) => ({ ...prev, status: 'other', isAuthor: false }))
           setLoadedKey(fetchKey)
@@ -68,7 +69,7 @@ export default function JourneyDetailPage() {
       .catch((err) => {
         if (cancelled) return
         const cached = getCachedJourney(id)
-        if (cached && cached.status !== 'other') {
+        if (cached && (fromMap || cached.status !== 'other')) {
           setJourney(cached)
           setLoadError(null)
         } else {
@@ -79,21 +80,24 @@ export default function JourneyDetailPage() {
     return () => {
       cancelled = true
     }
-  }, [id, profile.id, productId, fetchKey])
+  }, [id, profile.id, productId, fetchKey, fromMap])
 
   const forced = searchParams.get('view')
-  const isAuthor = journey.isAuthor !== false && journey.status !== 'other'
-  // 내가 등록 + 소유중 → 피그마 이어짐 상세(수정/삭제)
-  const canManage =
-    isAuthor && (journey.status === 'owned' || journey.status === 'linked')
+  const canManage = journey.isAuthor === true
+
+  // 지도 진입: 지도 배경 카드 UI. 그 외는 기존 linked/owned/other
   const mode =
     forced === 'other' || forced === 'linked' || forced === 'owned'
       ? forced
-      : canManage
-        ? 'linked'
-        : journey.status === 'other'
-          ? 'other'
-          : 'owned'
+      : fromMap
+        ? canManage
+          ? 'owned'
+          : 'other'
+        : canManage
+          ? 'linked'
+          : journey.status === 'other'
+            ? 'other'
+            : 'owned'
 
   const photoIndex = Number(searchParams.get('photo'))
   const markerPhotos = [mapMarker1, mapMarker2, mapMarker3]
@@ -104,7 +108,9 @@ export default function JourneyDetailPage() {
         ? journey.image || journeyHero
         : markerPhotos[photoIndex - 1] || journey.image || journeyHero
   const recordsPath = productId ? `/journey/records/${productId}` : '/journey'
-  const editPath = `/journey/entry/${journey.id}/edit?productId=${encodeURIComponent(productId)}`
+  const editPath = `/journey/entry/${journey.id}/edit?productId=${encodeURIComponent(productId)}${
+    fromMap ? '&from=map' : ''
+  }`
 
   const tagClass =
     mode === 'other'
@@ -125,7 +131,7 @@ export default function JourneyDetailPage() {
   const memoDisplay = String(journey.memo ?? journey.body ?? '').trim() || '메모가 없습니다.'
 
   const goBack = () => {
-    if (searchParams.get('from') === 'map') {
+    if (fromMap) {
       navigate('/main?map=expanded')
       return
     }
@@ -148,7 +154,7 @@ export default function JourneyDetailPage() {
     return undefined
   }
 
-  if (!loading && loadError && journey.status === 'other') {
+  if (!loading && loadError && journey.status === 'other' && !fromMap) {
     return (
       <AppShell showBack showTagline={false} showNav={false} onBack={goBack}>
         <div className="page page--journey-detail">
@@ -157,6 +163,9 @@ export default function JourneyDetailPage() {
       </AppShell>
     )
   }
+
+  const showActions = canManage && (mode === 'linked' || fromMap)
+  const showMemo = mode !== 'other'
 
   return (
     <AppShell showBack showTagline={false} showNav={false} onBack={goBack}>
@@ -214,7 +223,7 @@ export default function JourneyDetailPage() {
             )}
           </div>
 
-          {mode !== 'other' ? (
+          {showMemo ? (
             <div
               className={
                 mode === 'linked'
@@ -244,9 +253,31 @@ export default function JourneyDetailPage() {
               </div>
             </div>
           ) : null}
+
+          {showActions && mode !== 'linked' ? (
+            <div className="journey-detail-card__actions">
+              <button
+                type="button"
+                className="journey-detail-card__btn"
+                onClick={() => navigate(editPath)}
+              >
+                수정하기
+              </button>
+              <button
+                type="button"
+                className="journey-detail-card__btn journey-detail-card__btn--danger"
+                onClick={() => {
+                  setDeleteError(null)
+                  setConfirmOpen(true)
+                }}
+              >
+                삭제하기
+              </button>
+            </div>
+          ) : null}
         </article>
 
-        {mode === 'linked' && canManage ? (
+        {showActions && mode === 'linked' ? (
           <div className="journey-detail-linked__actions">
             <button
               type="button"
@@ -287,8 +318,8 @@ export default function JourneyDetailPage() {
         title="여정 기록이 성공적으로 삭제되었습니다."
         primaryLabel="확인"
         hideSecondary
-        onPrimary={() => navigate(recordsPath)}
-        onClose={() => navigate(recordsPath)}
+        onPrimary={() => navigate(fromMap ? '/main?map=expanded' : recordsPath)}
+        onClose={() => navigate(fromMap ? '/main?map=expanded' : recordsPath)}
       />
     </AppShell>
   )
