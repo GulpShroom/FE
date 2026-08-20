@@ -3,25 +3,33 @@ import { currentUser as seedUser } from '../data/mock'
 
 const ProfileContext = createContext(null)
 
+const defaultProfile = {
+  id: seedUser.id,
+  userId: seedUser.id,
+  name: seedUser.name,
+  handle: seedUser.handle,
+  ownedCount: seedUser.ownedCount,
+  avatarUrl: null,
+  profileType: null,
+}
+
 export function ProfileProvider({ children }) {
   const [profile, setProfile] = useState(() => {
     const saved = window.sessionStorage.getItem('mcarry-profile')
     if (saved) {
       try {
-        return JSON.parse(saved)
+        const parsed = JSON.parse(saved)
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          const userId = parsed.userId ?? parsed.id ?? defaultProfile.userId
+          return { ...defaultProfile, ...parsed, id: userId, userId }
+        }
+        window.sessionStorage.removeItem('mcarry-profile')
       } catch {
         window.sessionStorage.removeItem('mcarry-profile')
       }
     }
 
-    return {
-      id: seedUser.id,
-      name: seedUser.name,
-      handle: seedUser.handle,
-      ownedCount: seedUser.ownedCount,
-      avatarUrl: null,
-      profileType: null,
-    }
+    return defaultProfile
   })
 
   const updateProfile = (updater) => {
@@ -37,13 +45,25 @@ export function ProfileProvider({ children }) {
       profile,
       setName: (name) => updateProfile((p) => ({ ...p, name })),
       setAvatarUrl: (avatarUrl) => updateProfile((p) => ({ ...p, avatarUrl })),
-      selectProfile: ({ userId, nickname, profileType, ownedCount }) => updateProfile((p) => ({
-        ...p,
-        id: userId,
-        name: nickname || p.name,
-        profileType,
-        ownedCount: ownedCount ?? p.ownedCount,
-      })),
+      selectProfile: (selected = {}) => {
+        const userId = selected.userId ?? selected.id
+        if (userId == null || userId === '') {
+          throw new Error('프로필 응답에 사용자 ID가 없습니다.')
+        }
+
+        const next = {
+          ...profile,
+          id: userId,
+          userId,
+          name: selected.nickname || profile.name,
+          profileType: selected.profileType,
+          ownedCount: selected.ownedCount ?? profile.ownedCount,
+        }
+
+        window.sessionStorage.setItem('mcarry-profile', JSON.stringify(next))
+        setProfile(next)
+        return next
+      },
     }),
     [profile],
   )

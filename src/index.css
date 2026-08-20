@@ -296,11 +296,6 @@ img {
   flex: 0 0 auto;
 }
 
-.main-dots.is-spacer {
-  visibility: hidden;
-  pointer-events: none;
-}
-
 .main-dots button {
   width: 6px;
   height: 6px;
@@ -392,10 +387,10 @@ img {
 /* Main overview card — Figma 1044:8366: 290×179, r20, title 22 */
 .overview-card {
   position: relative;
-  width: 335px;
+  width: 315px;
   max-width: 100%;
-  height: 207px;
-  min-height: 207px;
+  height: 195px;
+  min-height: 195px;
   margin: 0 auto;
   border-radius: 20px;
   background: var(--mc-green);
@@ -410,8 +405,8 @@ img {
   position: absolute;
   left: 9px;
   top: 7px;
-  width: 317px;
-  height: 193px;
+  width: calc(100% - 18px);
+  height: calc(100% - 14px);
   border: 1px solid #fff;
   border-radius: 20px;
   padding: 31px 21px 16px;
@@ -512,7 +507,7 @@ img {
   width: 6px;
   height: 6px;
   border-radius: 20px;
-  background: #cfcfcf;
+  background: var(--mc-green);
   padding: 0;
   border: 0;
 }
@@ -623,6 +618,10 @@ img {
   background: #fff;
 }
 
+.map-panel:has(.map-country-search__options) {
+  z-index: 10;
+}
+
 .map-panel__body {
   position: relative;
   z-index: 0;
@@ -710,58 +709,6 @@ img {
   flex: 1;
   min-height: 0;
   overflow: hidden;
-}
-
-.expanded-map__background {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.expanded-map__marker {
-  position: absolute;
-  width: 110px;
-  height: 110px;
-  padding: 3px;
-  overflow: visible;
-  border: 3px solid #111;
-  border-radius: 10px;
-  background: #fff;
-  box-shadow: 0 5px 10px rgba(255, 215, 136, 0.48);
-}
-
-.expanded-map__marker::after {
-  content: '';
-  position: absolute;
-  left: 44px;
-  bottom: -14px;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: rgba(255, 215, 136, 0.65);
-  z-index: 0;
-}
-
-.expanded-map__marker img {
-  position: relative;
-  z-index: 1;
-  width: 100px;
-  height: 100px;
-  border-radius: 7px;
-  object-fit: cover;
-}
-
-.expanded-map__marker--one { left: 143px; top: 51px; }
-.expanded-map__marker--two { left: 56px; top: 279px; }
-.expanded-map__marker--three { left: 224px; top: 433px; }
-
-.expanded-map__place {
-  position: absolute;
-  left: 32px;
-  bottom: 60px;
-  font-family: 'Plus Jakarta Sans', var(--mc-font);
-  font-size: 15px;
-  color: #262626;
 }
 
 .phone-shell:has(.expanded-map-view) .mc-nav {
@@ -1385,6 +1332,51 @@ img {
   bottom: 60px;
 }
 
+.main-dashboard-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  text-align: center;
+}
+
+.main-dashboard-state > p {
+  margin: 0;
+  color: var(--mc-ink-60);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.main-dashboard-state > button {
+  min-width: 104px;
+  height: 36px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 18px;
+  background: #262626;
+  color: #fff;
+  font-size: 13px;
+}
+
+.main-dashboard-state--details {
+  flex: 0 0 auto;
+  min-height: 336px;
+}
+
+.main-dashboard-spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid rgb(54 104 97 / 20%);
+  border-top-color: var(--mc-green);
+  border-radius: 50%;
+  animation: main-dashboard-spin 0.8s linear infinite;
+}
+
+@keyframes main-dashboard-spin {
+  to { transform: rotate(360deg); }
+}
+
 .page--main:has(.main-dashboard-brand) {
   padding-top: 105px;
 }
@@ -1393,8 +1385,8 @@ img {
   position: relative;
   top: -3px;
   flex: 0 0 auto;
-  width: calc(100% - 100px);
-  height: 58px;
+  width: calc(100% - 110px);
+  height: 54px;
   margin: 0 auto;
   display: flex;
   align-items: center;
