@@ -88,6 +88,7 @@ export function AppShell({
   logoWidth,
   logoHeight,
   onBack,
+  floatingAction,
 }) {
   return (
     <div className="phone-shell">
@@ -104,6 +105,7 @@ export function AppShell({
         )}
         {children}
       </div>
+      {floatingAction ?? null}
       {showNav ? <McNav /> : null}
     </div>
   )
