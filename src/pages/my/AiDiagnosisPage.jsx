@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
 import { AppShell } from '../../components/AppShell'
 import { usePhotoPick } from '../../hooks/usePhotoPick'
@@ -15,6 +15,7 @@ function scoreToSignal(score) {
 export default function AiDiagnosisPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const product = products.find((p) => p.id === id) ?? products[0]
   const [photos, setPhotos] = useState([null, null, null])
   const [activeSlot, setActiveSlot] = useState(0)
@@ -59,7 +60,20 @@ export default function AiDiagnosisPage() {
           : 'AI가 제품 상태를 진단하고 있습니다.'
 
   return (
-    <AppShell showBack onBack={() => navigate(`/my/products/${product.id}`)}>
+    <AppShell
+      showBack
+      onBack={() =>
+        location.state?.fromResell
+          ? navigate('/resell/new', {
+              replace: true,
+              state: {
+                resellStep: location.state.resellStep,
+                resellProductId: location.state.resellProductId,
+              },
+            })
+          : navigate(`/my/products/${product.id}`)
+      }
+    >
       {pickers}
       <div className="page page--ai">
         <section className="ai-upload">
