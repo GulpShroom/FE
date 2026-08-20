@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { AppShell } from '../../components/AppShell'
-import { currentUser, products } from '../../data/mock'
+import { getUserProducts, mapUserProduct } from '../../api/products'
+import { useProfile } from '../../context/ProfileContext'
 import planeTip from '../../assets/final/progress-plane.png'
+import stampImg from '../../assets/final/stamp.png'
 import cameraIcon from '../../assets/final/camera.svg'
 import checkCircleIcon from '../../assets/final/resell-check-circle.svg'
 import documentAddIcon from '../../assets/final/resell-document-add.svg'
@@ -70,11 +72,16 @@ const SHARE_JOURNEYS = [
 export default function ResellCreatePage() {
   const navigate = useNavigate()
   const location = useLocation()
+  const [searchParams] = useSearchParams()
+  const { profile } = useProfile()
   const returnStep = steps.indexOf(location.state?.resellStep)
+  const queryProductId = searchParams.get('productId') || ''
+  const stateProductId = location.state?.resellProductId
+    ? String(location.state.resellProductId)
+    : ''
   const [step, setStep] = useState(returnStep >= 0 ? returnStep : 0)
-  const [productId, setProductId] = useState(
-    location.state?.resellProductId ?? products[0]?.id ?? '',
-  )
+  const [productId, setProductId] = useState(() => queryProductId || stateProductId || '')
+  const [owningProducts, setOwningProducts] = useState([])
   const [price, setPrice] = useState('')
   const [condition, setCondition] = useState('S')
   const [photos, setPhotos] = useState([null, null, null])
@@ -92,10 +99,63 @@ export default function ResellCreatePage() {
     location.state?.resellSituationSelections ?? [],
   )
 
-  const product = products.find((p) => p.id === productId) ?? products[0]
-  const productIndex = products.findIndex((p) => p.id === productId)
-  const selectProductIndex = Math.max(0, Math.min(productIndex, resellProductDummies.length - 1))
-  const selectProductDetails = resellProductDummies[selectProductIndex]
+  useEffect(() => {
+    const userId = profile.userId ?? profile.id
+    if (userId == null || userId === '') return undefined
+
+    let cancelled = false
+    getUserProducts(userId, { status: 'owning' })
+      .then((data) => {
+        if (cancelled) return
+        const list = (data?.products ?? []).map(mapUserProduct)
+        setOwningProducts(list)
+
+        const preferred = queryProductId || stateProductId
+        setProductId((current) => {
+          if (preferred && list.some((item) => item.id === String(preferred))) {
+            return String(preferred)
+          }
+          if (current && list.some((item) => item.id === String(current))) {
+            return String(current)
+          }
+          return list[0]?.id ?? current
+        })
+      })
+      .catch(() => {
+        if (!cancelled) setOwningProducts([])
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [profile.userId, profile.id, queryProductId, stateProductId])
+
+  const product =
+    owningProducts.find((item) => item.id === String(productId)) ?? owningProducts[0] ?? null
+  const productIndex = owningProducts.findIndex((item) => item.id === String(productId))
+  const selectProductIndex = Math.max(
+    0,
+    Math.min(
+      productIndex >= 0 ? productIndex : 0,
+      Math.max(owningProducts.length, resellProductDummies.length) - 1,
+    ),
+  )
+  const selectedOwning = owningProducts[selectProductIndex]
+  const selectProductDetails = selectedOwning
+    ? {
+        ...resellProductDummies[
+          Math.min(selectProductIndex, resellProductDummies.length - 1)
+        ],
+        productId: selectedOwning.id,
+        alias: selectedOwning.alias,
+        journeyCount: selectedOwning.journeyCount,
+        previousOwnerCount: Math.max(0, (selectedOwning.generation ?? 1) - 1),
+      }
+    : resellProductDummies[Math.min(selectProductIndex, resellProductDummies.length - 1)]
+  const productStamp = product?.image || stampImg
+  const productName = product?.nameEn || product?.name || '—'
+  // POST /auth/profile 응답 nickname → ProfileContext의 profile.name
+  const sellerName = profile.name || '—'
   const key = steps[step]
   const isContentEdit = Boolean(
     location.state?.resellEditReturn && ['letter', 'care', 'share'].includes(key),
@@ -261,9 +321,11 @@ export default function ResellCreatePage() {
                 type="button"
                 className="resell-overview"
                 onClick={() => {
-                  const nextId = resellProductDummies[
-                    (selectProductIndex + 1) % resellProductDummies.length
-                  ]?.productId
+                  const pool =
+                    owningProducts.length > 0
+                      ? owningProducts.map((item) => item.id)
+                      : resellProductDummies.map((dummy) => dummy.productId)
+                  const nextId = pool[(selectProductIndex + 1) % pool.length]
                   if (nextId) selectProduct(nextId)
                 }}
               >
@@ -277,7 +339,7 @@ export default function ResellCreatePage() {
                   <span className="resell-overview__stamp-box" aria-hidden="true">
                     <img
                       className="resell-overview__stamp"
-                      src={product.stamp}
+                      src={productStamp}
                       alt=""
                       width={168}
                       height={168}
@@ -289,21 +351,28 @@ export default function ResellCreatePage() {
             </div>
 
             <div className="passport-rail" aria-label="제품 선택">
-              {resellProductDummies.map((dummy, i) =>
+              {(owningProducts.length > 0
+                ? owningProducts.map((item) => ({
+                    id: item.id,
+                    productId: item.id,
+                    alias: item.alias,
+                  }))
+                : resellProductDummies
+              ).map((item, i) =>
                 i === selectProductIndex ? (
                   <span
-                    key={dummy.id}
+                    key={item.id}
                     className="passport-rail__pill"
                     style={{ background: 'var(--mc-green)' }}
                   />
                 ) : (
                   <button
-                    key={dummy.id}
+                    key={item.id}
                     type="button"
                     className="passport-rail__dot"
                     style={{ background: 'var(--mc-green)', border: 0, padding: 0 }}
-                    onClick={() => selectProduct(dummy.productId)}
-                    aria-label={`${dummy.alias} 선택`}
+                    onClick={() => selectProduct(item.productId)}
+                    aria-label={`${item.alias} 선택`}
                   />
                 ),
               )}
@@ -362,11 +431,11 @@ export default function ResellCreatePage() {
             <div className="resell-info-card">
               <div className="resell-info-card__row">
                 <span>상품명</span>
-                <strong>{product.nameEn ?? product.name}</strong>
+                <strong>{productName}</strong>
               </div>
               <div className="resell-info-card__row">
                 <span>판매자</span>
-                <strong>{currentUser.handle}</strong>
+                <strong>{sellerName}</strong>
               </div>
             </div>
 
@@ -473,7 +542,7 @@ export default function ResellCreatePage() {
                   ))}
                 </div>
                 <span className="resell-defaults-summary__stamp-box" aria-hidden="true">
-                  <img src={product.stamp} alt="" width={168} height={168} />
+                  <img src={productStamp} alt="" width={168} height={168} />
                 </span>
                 <p className="resell-defaults-summary__score">{selectProductDetails.score}</p>
               </div>
@@ -511,11 +580,11 @@ export default function ResellCreatePage() {
                 <button
                   type="button"
                   onClick={() =>
-                    navigate(`/my/products/${product.id}/ai`, {
+                    navigate(`/my/products/${product?.id}/ai`, {
                       state: {
                         fromResell: true,
                         resellStep: 'defaults',
-                        resellProductId: product.id,
+                        resellProductId: product?.id,
                       },
                     })
                   }
@@ -789,7 +858,7 @@ export default function ResellCreatePage() {
                   <span className="resell-overview__stamp-box" aria-hidden="true">
                     <img
                       className="resell-overview__stamp"
-                      src={product.stamp}
+                      src={productStamp}
                       alt=""
                       width={168}
                       height={168}
@@ -831,9 +900,13 @@ export default function ResellCreatePage() {
               </div>
 
               <div className="resell-preview__stats">
-                <p className="resell-preview__stat">{product.summary}</p>
                 <p className="resell-preview__stat">
-                  전체 여정의 {product.verifiedPct}% 검증 완료
+                  {product?.generation
+                    ? `${product.generation}대 계승 · ${product.journeyCount ?? 0}개 여정`
+                    : `${selectProductDetails.previousOwnerCount + 1}명의 주인 · ${selectProductDetails.journeyCount}개 여정`}
+                </p>
+                <p className="resell-preview__stat">
+                  {productName}
                 </p>
               </div>
 
