@@ -3258,8 +3258,46 @@ img {
 /* Resell list — Figma 1044:10308 */
 .page--resell {
   position: relative;
-  padding-top: 8px;
+  padding: 8px 12px 96px;
   padding-bottom: 96px;
+}
+
+.phone-shell__body:has(.page--resell) {
+  padding-bottom: 100px;
+  overflow: hidden;
+}
+
+.phone-shell__body:has(.page--resell) > .mc-header {
+  position: relative;
+  min-height: 120px;
+  height: 120px;
+  display: flex;
+  justify-content: flex-start;
+  padding: 28px 12px 9px;
+}
+
+.phone-shell__body:has(.page--resell) .mc-header__side {
+  display: none;
+}
+
+.phone-shell__body:has(.page--resell) .mc-header__brand {
+  width: 190px;
+  align-items: stretch;
+  gap: 0;
+}
+
+.phone-shell__body:has(.page--resell) .mc-header__logo {
+  width: 190px;
+  height: 103px;
+  object-fit: contain;
+}
+
+.phone-shell__body:has(.page--resell) .mc-header__tagline {
+  width: 133px;
+  font-size: 8px;
+  line-height: normal;
+  letter-spacing: 0;
+  text-align: center;
 }
 
 .resell-head {
@@ -3267,15 +3305,16 @@ img {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .resell-head__title {
   margin: 0;
   font-size: 30px;
   line-height: 36px;
-  font-weight: 500;
-  font-style: italic;
+  font-family: var(--mc-serif);
+  font-weight: 400;
+  font-style: normal;
   color: var(--mc-green);
 }
 
@@ -3290,6 +3329,7 @@ img {
   line-height: 16px;
   cursor: pointer;
   white-space: nowrap;
+  font-family: var(--mc-serif);
 }
 
 .resell-segmented {
@@ -3312,6 +3352,7 @@ img {
   font-size: 14px;
   line-height: 20px;
   cursor: pointer;
+  font-family: var(--mc-serif);
 }
 
 .resell-segmented button.is-active {
@@ -3323,7 +3364,7 @@ img {
   display: flex;
   gap: 5px;
   align-items: center;
-  margin-bottom: 16px;
+  margin: 0 0 16px 7px;
 }
 
 .resell-tone {
@@ -3336,6 +3377,7 @@ img {
   font-size: 10px;
   line-height: 18px;
   cursor: pointer;
+  font-family: var(--mc-serif);
 }
 
 .resell-tone.is-active {
@@ -3382,12 +3424,6 @@ img {
   flex: 0 0 auto;
 }
 
-.resell-card__thumb img {
-  width: 56px;
-  height: 56px;
-  object-fit: cover;
-}
-
 .resell-card__title {
   margin: 0 0 4px;
   font-size: 16px;
@@ -3397,6 +3433,8 @@ img {
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 166px;
+  font-family: var(--mc-serif);
+  font-weight: 400;
 }
 
 .resell-card__price {
@@ -3404,19 +3442,13 @@ img {
   font-size: 12px;
   line-height: 24px;
   color: #212121;
-}
-
-.resell-card__meta {
-  position: absolute;
-  right: 12px;
-  bottom: 11px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
+  font-family: var(--mc-font-paper);
 }
 
 .resell-card__status {
+  position: absolute;
+  right: 12px;
+  bottom: 11px;
   height: 23px;
   padding: 0 10px;
   border-radius: 10px;
@@ -3424,6 +3456,7 @@ img {
   font-size: 10px;
   line-height: 23px;
   color: #212121;
+  font-family: var(--mc-serif-light);
 }
 
 .resell-card__delete {
@@ -3443,32 +3476,258 @@ img {
 .resell-empty__title {
   margin: 0 0 8px;
   font-size: 18px;
+  font-family: 'HUFS M', sans-serif;
+}
+
+.resell-completed-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 112px;
+  z-index: 35;
+  min-width: 230px;
+  padding: 13px 20px;
+  border-radius: 22px;
+  background: rgba(38, 38, 38, 0.94);
+  color: #fff;
+  font-family: var(--mc-serif);
+  font-size: 14px;
+  line-height: 20px;
+  text-align: center;
+  transform: translateX(-50%);
+  animation: resell-toast-in 160ms ease-out;
+}
+
+@keyframes resell-toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
 }
 
 .resell-empty__desc {
   margin: 0;
   font-size: 13px;
   color: var(--mc-ink-60);
+  font-family: 'HUFS L', sans-serif;
 }
 
 .resell-fab {
   position: absolute;
-  right: 20px;
-  bottom: 18px;
-  width: 48px;
-  height: 48px;
+  right: 35px;
+  bottom: 102px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
-  border: 1px solid #262626;
+  border: 2px solid rgba(0, 0, 0, 0.8);
   background: #fff;
   color: #262626;
-  font-size: 28px;
-  line-height: 1;
   cursor: pointer;
-  z-index: 5;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  z-index: 31;
+  box-shadow: none;
+}
+
+.resell-fab__ring,
+.resell-fab__vertical,
+.resell-fab__horizontal {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.resell-fab__ring {
+  width: 41px;
+  height: 41px;
+  opacity: 0;
+}
+
+.resell-fab__vertical {
+  width: 2px;
+  height: 17px;
+}
+
+.resell-fab__horizontal {
+  width: 17px;
+  height: 2px;
 }
 
 /* Resell create — Figma 751:1746 / 751:1919 */
+.page--resell-create {
+  position: relative;
+  top: -22px;
+}
+
+.phone-shell__body:has(.page--resell-create) {
+  overflow-anchor: none;
+}
+
+.page--resell-create:not(.page--resell-create-select):not(.page--resell-create-guide) {
+  padding-top: 3px;
+}
+
+.page--resell-create:not(.page--resell-create-select):not(.page--resell-create-guide) .reg-progress {
+  width: 358px;
+  position: relative;
+  left: 50%;
+  margin-left: 0;
+  transform: translateX(-50%);
+}
+
+.page--resell-create .reg-progress__track {
+  overflow: visible;
+  transform: translateY(8px);
+}
+
+.page--resell-create .reg-progress__plane {
+  display: block;
+  z-index: 2;
+}
+
+.page--resell-content-edit {
+  top: -62px;
+}
+
+.phone-shell__body:has(.page--resell-create-select) {
+  overflow: hidden;
+  padding-bottom: 0;
+}
+
+.page--resell-create-select {
+  position: relative;
+  top: -22px;
+  display: block;
+  width: 100%;
+  height: calc(100% - 98px);
+  padding: 0;
+}
+
+.page--resell-create-select .reg-progress {
+  position: absolute;
+  left: 50%;
+  right: auto;
+  top: 3px;
+  width: 358px;
+  gap: 8px;
+  margin: 0;
+  transform: translateX(-50%);
+}
+
+.page--resell-create-select .resell-create__title {
+  position: absolute;
+  left: 35px;
+  top: 80px;
+  width: 288px;
+  height: 34px;
+  margin: 0;
+  font-family: var(--mc-serif);
+  font-weight: 400;
+}
+
+.page--resell-create-select .resell-create__sub {
+  position: absolute;
+  left: 35px;
+  top: 118px;
+  width: 289px;
+  margin: 0;
+  font-family: var(--mc-serif-light);
+}
+
+.page--resell-create-select .resell-pick {
+  position: absolute;
+  left: 35px;
+  top: 174px;
+  width: 290px;
+}
+
+.page--resell-create-select .resell-overview {
+  margin: 0;
+  padding: 0;
+}
+
+.page--resell-create-select .resell-overview__inner {
+  position: absolute;
+  left: 8px;
+  top: 6px;
+  width: 275px;
+  height: 167px;
+  padding: 25px 17px 14px;
+}
+
+.page--resell-create-select .resell-overview__eyebrow {
+  margin: 0 0 2px;
+  font-family: var(--mc-serif-light);
+}
+
+.page--resell-create-select .resell-overview__alias {
+  margin: 0 0 17px;
+  font-family: var(--mc-serif);
+  font-weight: 400;
+}
+
+.page--resell-create-select .resell-overview__meta {
+  font-family: var(--mc-font-paper);
+  font-weight: 300;
+}
+
+.page--resell-create-select .resell-overview__stamp-box {
+  position: absolute;
+  left: 116px;
+  top: 12px;
+  width: 194px;
+  height: 194px;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.page--resell-create-select .resell-overview__stamp {
+  position: static;
+  width: 168px;
+  height: 168px;
+}
+
+.page--resell-create-select .resell-overview__score {
+  right: 13px;
+  bottom: 14px;
+}
+
+.page--resell-create-select .passport-rail {
+  position: absolute;
+  left: 149px;
+  top: 364px;
+  width: auto;
+  margin: 0;
+}
+
+.page--resell-create-select .resell-inherit {
+  position: absolute;
+  left: 10px;
+  right: 7px;
+  top: 396px;
+  width: auto;
+}
+
+.page--resell-create-select .resell-inherit__label {
+  font-family: var(--mc-serif);
+}
+
+.page--resell-create-select .resell-inherit__box {
+  font-family: var(--mc-serif-light);
+}
+
+.page--resell-create-select .resell-next {
+  position: absolute;
+  left: 50%;
+  top: 510px;
+  width: 335px;
+  font-family: var(--mc-serif);
+  transform: translateX(-50%);
+}
+
 .resell-create__title {
   margin: 0;
   font-size: 24px;
@@ -3554,6 +3813,7 @@ img {
   margin: 0;
   font-size: 50px;
   line-height: 1;
+  font-family: 'Cormorant Garamond', Georgia, serif;
   font-weight: 700;
   text-shadow: 3px 3px 8px #fff;
   z-index: 2;
@@ -3726,7 +3986,958 @@ img {
   line-height: 1;
 }
 
+/* Resell create — final confirmation, Figma 751:1919 */
+.page--resell-create-confirm {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: calc(1074px - var(--confirm-reduction, 0px));
+  padding: 0;
+}
+
+.page--resell-create-confirm .reg-progress,
+.page--resell-create-done .reg-progress {
+  position: absolute;
+  left: 50%;
+  top: 3px;
+  width: 358px;
+  margin: 0;
+  transform: translateX(-50%);
+}
+
+.page--resell-create-confirm .resell-create__title {
+  position: absolute;
+  left: 10px;
+  top: 80px;
+  width: 176px;
+  margin: 0;
+  font-family: var(--mc-serif);
+  font-weight: 400;
+}
+
+.page--resell-create-confirm > .resell-create__sub {
+  position: absolute;
+  left: 14px;
+  top: 119px;
+  width: 207px;
+  margin: 0;
+  font-family: var(--mc-serif-light);
+}
+
+.page--resell-create-confirm .resell-preview-label {
+  position: absolute;
+  left: 14px;
+  top: 184px;
+  width: 93px;
+  margin: 0;
+  font-family: var(--mc-serif);
+  font-weight: 400;
+}
+
+.page--resell-create-confirm .resell-preview {
+  position: absolute;
+  left: 12px;
+  top: 227px;
+  width: 335px;
+  height: calc(749px - var(--confirm-reduction, 0px));
+  padding: 0;
+  display: block;
+  overflow: hidden;
+}
+
+.page--resell-create-confirm .resell-preview__overview {
+  position: absolute;
+  left: 23px;
+  top: 25px;
+  width: 290px;
+  height: 179px;
+  padding: 0;
+  cursor: default;
+}
+
+.page--resell-create-confirm .resell-preview__overview .resell-overview__inner {
+  position: absolute;
+  left: 8px;
+  top: 6px;
+  width: 275px;
+  height: 167px;
+  padding: 25px 17px 14px;
+}
+
+.page--resell-create-confirm .resell-preview__overview .resell-overview__eyebrow {
+  margin: 0 0 2px;
+  font-family: var(--mc-serif-light);
+}
+
+.page--resell-create-confirm .resell-preview__overview .resell-overview__alias {
+  margin: 0 0 17px;
+  font-family: var(--mc-serif);
+  font-weight: 400;
+}
+
+.page--resell-create-confirm .resell-preview__overview .resell-overview__meta {
+  font-family: var(--mc-font-paper);
+  font-weight: 300;
+}
+
+.page--resell-create-confirm .resell-preview__overview .resell-overview__stamp-box {
+  position: absolute;
+  left: 116px;
+  top: 12px;
+  width: 194px;
+  height: 194px;
+  display: grid;
+  place-items: center;
+}
+
+.page--resell-create-confirm .resell-preview__overview .resell-overview__stamp {
+  position: static;
+  width: 168px;
+  height: 168px;
+  opacity: 0.2;
+  object-fit: contain;
+  transform: rotate(-10deg);
+}
+
+.page--resell-create-confirm .resell-preview__overview .resell-overview__score {
+  right: 13px;
+  bottom: 14px;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 50px;
+  font-weight: 700;
+}
+
+.page--resell-create-confirm .resell-preview__photos {
+  position: absolute;
+  left: 19px;
+  top: 230px;
+  gap: 9px;
+}
+
+.page--resell-create-confirm .resell-preview__photo {
+  width: 93px;
+  height: 89px;
+}
+
+.page--resell-create-confirm .resell-preview__photo img,
+.page--resell-create-confirm .resell-preview__photo-placeholder {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.page--resell-create-confirm .resell-preview__photo .resell-preview__uploaded-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.page--resell-create-confirm .resell-preview__price-row {
+  position: absolute;
+  left: 23px;
+  top: 338px;
+  height: 28px;
+}
+
+.page--resell-create-confirm .resell-preview__price {
+  font-family: var(--mc-serif);
+  font-weight: 400;
+}
+
+.page--resell-create-confirm .resell-preview__badge {
+  font-family: var(--mc-serif-light);
+}
+
+.page--resell-create-confirm .resell-preview__stats {
+  position: absolute;
+  left: 23px;
+  top: 379px;
+  gap: 6px;
+  padding: 0;
+  font-family: var(--mc-serif-light);
+}
+
+.page--resell-create-confirm .resell-preview__row {
+  position: absolute;
+  left: 8px;
+  width: 318px;
+  min-height: 44px;
+  font-family: var(--mc-serif-light);
+}
+
+.page--resell-create-confirm .resell-preview__row--letter {
+  top: 441px;
+}
+
+.page--resell-create-confirm .resell-preview__row--care {
+  top: 493px;
+  height: 188px;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.page--resell-create-confirm .resell-preview__row--care p {
+  margin: 0;
+  color: #4b5563;
+  font-size: 12px;
+  line-height: 18px;
+  white-space: pre-wrap;
+}
+
+.page--resell-create-confirm .resell-preview__row--journey {
+  top: 692px;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.page--resell-create-confirm .resell-preview--no-care .resell-preview__row--journey {
+  top: 493px;
+}
+
+.page--resell-create-confirm .resell-preview--no-letter .resell-preview__row--care {
+  top: 441px;
+}
+
+.page--resell-create-confirm .resell-preview--no-letter:not(.resell-preview--no-care) .resell-preview__row--journey {
+  top: 640px;
+}
+
+.page--resell-create-confirm .resell-preview--no-letter.resell-preview--no-care .resell-preview__row--journey {
+  top: 441px;
+}
+
+.page--resell-create-confirm .resell-preview__chev {
+  position: absolute;
+  right: 7px;
+  top: 10px;
+  width: 24px;
+  height: 24px;
+}
+
+.page--resell-create-confirm .resell-next {
+  position: absolute;
+  left: 50%;
+  top: calc(1005px - var(--confirm-reduction, 0px));
+  width: 335px;
+  height: 69px;
+  margin: 0;
+  transform: translateX(-50%);
+  font-family: var(--mc-serif);
+  font-size: 20px;
+}
+
 /* Resell create steps — guide / info / share / letter / care / done */
+.page--resell-create-info {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 795px;
+  padding: 0;
+}
+
+.page--resell-create-info .reg-progress {
+  position: absolute;
+  left: 50%;
+  right: auto;
+  top: 3px;
+  width: 358px;
+  margin: 0;
+  margin-left: 0;
+  transform: translateX(-50%);
+}
+
+.page--resell-create-info .reg-progress__track {
+  transform: translateY(5px);
+}
+
+.page--resell-create-info .resell-create__title {
+  position: absolute;
+  left: 20px;
+  top: 68px;
+  width: 200px;
+  margin: 0;
+  font-family: var(--mc-serif);
+  font-weight: 400;
+  color: #1a302b;
+}
+
+.page--resell-create-info .resell-create__sub {
+  position: absolute;
+  left: 20px;
+  top: 105px;
+  width: 300px;
+  margin: 0;
+  font-family: var(--mc-serif-light);
+}
+
+.page--resell-create-info .resell-info-card {
+  position: absolute;
+  left: 11px;
+  right: 8px;
+  top: 146px;
+  width: auto;
+  padding: 16px;
+  font-family: var(--mc-serif);
+}
+
+.page--resell-create-info .resell-info-card__row strong {
+  font-family: var(--mc-font-jakarta);
+  font-weight: 300;
+}
+
+.page--resell-create-info .resell-field--photos {
+  position: absolute;
+  left: 14px;
+  top: 255px;
+  width: 317px;
+}
+
+.page--resell-create-info .resell-field--condition {
+  position: absolute;
+  left: 13px;
+  top: 433px;
+  width: 333px;
+  gap: 12px;
+}
+
+.page--resell-create-info .resell-field--price {
+  position: absolute;
+  left: 14px;
+  top: 619px;
+  width: 331px;
+  gap: 12px;
+}
+
+.page--resell-create-info .resell-field__label,
+.page--resell-create-info .resell-field__hint,
+.page--resell-create-info .resell-condition,
+.page--resell-create-info .resell-price {
+  font-family: var(--mc-serif);
+}
+
+.page--resell-create-info .resell-photos {
+  width: 317px;
+}
+
+.page--resell-create-info .resell-condition {
+  width: 333px;
+}
+
+.page--resell-create-info .resell-condition__ai,
+.page--resell-create-info .resell-condition__opts button,
+.page--resell-create-info .resell-condition__note {
+  font-family: var(--mc-serif-light);
+}
+
+.page--resell-create-info .resell-price input,
+.page--resell-create-info .resell-price span {
+  font-family: var(--mc-serif-light);
+}
+
+.page--resell-create-info .resell-next {
+  position: absolute;
+  left: 50%;
+  top: 726px;
+  width: 335px;
+  height: 69px;
+  margin: 0;
+  transform: translateX(-50%);
+  font-family: var(--mc-serif);
+  font-size: 20px;
+}
+
+.phone-shell__body:has(.page--resell-create-guide) {
+  overflow: hidden;
+  padding-bottom: 0;
+}
+
+.page--resell-create-guide {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: calc(100% - 98px);
+  padding: 0;
+}
+
+.page--resell-create-guide .reg-progress {
+  position: absolute;
+  left: 50%;
+  right: auto;
+  top: 3px;
+  width: 358px;
+  gap: 8px;
+  margin: 0;
+  transform: translateX(-50%);
+}
+
+.page--resell-create-guide .reg-progress,
+.page--resell-create-info .reg-progress {
+  position: absolute;
+  left: 50%;
+  right: auto;
+  top: 3px;
+  width: 358px;
+  margin: 0;
+  transform: translateX(-50%);
+}
+
+.page--resell-create-guide .resell-guide {
+  position: absolute;
+  left: 0;
+  top: 66px;
+  width: 100%;
+  height: 397px;
+  padding: 0;
+  margin: 0;
+  display: block;
+}
+
+.page--resell-create-guide .resell-guide__clip {
+  left: 137px;
+  top: 0;
+  transform: none;
+}
+
+.page--resell-create-guide .resell-guide__clip::after {
+  left: -20px;
+  top: 47px;
+  bottom: auto;
+  transform: none;
+}
+
+.page--resell-create-guide .resell-guide__board {
+  position: absolute;
+  left: 38px;
+  top: 55px;
+  width: 285px;
+  min-height: 342px;
+  height: 342px;
+  margin: 0;
+  padding: 72px 24px 40px;
+}
+
+.page--resell-create-guide .resell-guide__title {
+  font-family: var(--mc-serif);
+  font-weight: 400;
+}
+
+.page--resell-create-guide .resell-guide__body {
+  font-family: var(--mc-serif-light);
+  font-weight: 400;
+}
+
+.page--resell-create-guide .resell-next {
+  position: absolute;
+  left: 50%;
+  top: 510px;
+  width: 335px;
+  height: 69px;
+  margin: 0;
+  transform: translateX(-50%);
+  font-family: var(--mc-serif);
+}
+
+/* Resell create — default visibility, Figma 751:1836 */
+.page--resell-create-defaults {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 1213px;
+  padding: 0;
+  font-family: var(--mc-serif);
+}
+
+.page--resell-create-defaults .reg-progress {
+  position: absolute;
+  left: 50%;
+  top: 3px;
+  width: 358px;
+  margin: 0;
+  transform: translateX(-50%);
+}
+
+.resell-defaults__title {
+  position: absolute;
+  left: 14px;
+  top: 81px;
+  width: 332px;
+  margin: 0;
+  color: #1a302b;
+  font-family: var(--mc-serif);
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 30px;
+  text-align: center;
+}
+
+.resell-defaults-summary {
+  position: absolute;
+  left: 34px;
+  top: 146px;
+  width: 290px;
+  height: 179px;
+  padding: 0;
+  border: 0;
+  border-radius: 20px;
+  background: var(--mc-green);
+  color: #fff;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.resell-defaults-summary__inner {
+  position: absolute;
+  left: 8px;
+  top: 6px;
+  width: 275px;
+  height: 167px;
+  padding: 24px 17px 12px;
+  border: 1px solid #fff;
+  border-radius: 20px;
+  box-sizing: border-box;
+}
+
+.resell-defaults-summary__alias {
+  position: relative;
+  z-index: 2;
+  margin: 0 0 17px;
+  font-size: 22px;
+  line-height: 27px;
+  letter-spacing: 0.88px;
+}
+
+.resell-defaults-summary__facts {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.resell-defaults-summary__facts p {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  font-family: var(--mc-font-paper);
+  font-size: 11px;
+  font-weight: 300;
+  line-height: 16px;
+  letter-spacing: -0.11px;
+}
+
+.resell-defaults-summary__facts img {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  filter: brightness(0) invert(1);
+}
+
+.resell-defaults-summary__stamp-box {
+  position: absolute;
+  left: 116px;
+  top: 12px;
+  width: 194px;
+  height: 194px;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.resell-defaults-summary__stamp-box img {
+  width: 168px;
+  height: 168px;
+  object-fit: contain;
+  opacity: 0.2;
+  transform: rotate(-10deg);
+}
+
+.resell-defaults-summary__score {
+  position: absolute;
+  z-index: 3;
+  right: 13px;
+  bottom: 14px;
+  margin: 0;
+  color: #fff;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 50px;
+  font-weight: 700;
+  line-height: 1;
+  text-shadow: 3px 3px 8px #fff;
+}
+
+.resell-diagnosis {
+  position: absolute;
+  left: 0;
+  top: 359px;
+  width: 100%;
+}
+
+.resell-diagnosis h2 {
+  margin: 0 0 22px 12px;
+  color: #1a302b;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 20px;
+}
+
+.resell-diagnosis__card {
+  position: relative;
+  width: 351px;
+  height: 233px;
+  margin: 0 auto 18px;
+  padding: 42px 21px 21px;
+  border: 1px solid var(--mc-green);
+  border-radius: 10px;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.resell-diagnosis__keeper {
+  position: absolute;
+  left: 16px;
+  top: 16px;
+  color: var(--mc-green);
+  font-family: var(--mc-font-jakarta);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+}
+
+.resell-diagnosis dl,
+.resell-diagnosis dd {
+  margin: 0;
+}
+
+.resell-diagnosis dl > div {
+  display: grid;
+  grid-template-columns: 77px 1fr;
+  min-height: 37px;
+  align-items: center;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 12px;
+  line-height: 17px;
+}
+
+.resell-diagnosis dt {
+  color: #6b7280;
+  font-weight: 400;
+}
+
+.resell-diagnosis dd {
+  color: #212121;
+  font-family: var(--mc-serif-light);
+}
+
+.resell-diagnosis dl > .resell-diagnosis__solution {
+  min-height: 84px;
+  align-items: start;
+  padding-top: 13px;
+  border-bottom: 0;
+  box-sizing: border-box;
+}
+
+.resell-diagnosis__solution dd {
+  line-height: 19px;
+}
+
+.resell-diagnosis__empty {
+  position: relative;
+  width: 351px;
+  height: 217px;
+  margin: 0 auto;
+  padding-top: 30px;
+  border: 1px dashed var(--mc-green);
+  border-radius: 10px;
+  background: #fff;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.resell-diagnosis__empty img {
+  display: block;
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 7px;
+}
+
+.resell-diagnosis__empty strong {
+  display: block;
+  color: #424242;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+}
+
+.resell-diagnosis__empty p {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 26px;
+  margin: 0;
+  color: #9ca3af;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.resell-diagnosis__empty button {
+  min-width: 110px;
+  height: 31px;
+  margin-top: 9px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: #ffda83;
+  color: #212121;
+  font-family: var(--mc-serif);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.page--resell-create-defaults .resell-next {
+  position: absolute;
+  left: 50%;
+  top: 1144px;
+  width: 335px;
+  height: 69px;
+  margin: 0;
+  transform: translateX(-50%);
+  font-family: var(--mc-serif);
+  font-size: 20px;
+}
+
+/* Resell create — journey sharing, Figma 824:4710 */
+.page--resell-create-share {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: calc(828px + var(--share-expanded, 1) * 135px);
+  padding: 0;
+}
+
+.page--resell-create-share .reg-progress {
+  position: absolute;
+  left: 50%;
+  top: 3px;
+  width: 358px;
+  margin: 0;
+  transform: translateX(-50%);
+}
+
+.page--resell-create-share .resell-create__title {
+  position: absolute;
+  left: 14px;
+  top: 81px;
+  width: 299px;
+  margin: 0;
+  font-family: var(--mc-serif);
+  font-weight: 400;
+}
+
+.page--resell-create-share > .resell-create__sub {
+  position: absolute;
+  left: 17px;
+  top: 115px;
+  width: 304px;
+  margin: 0;
+  font-family: var(--mc-serif-light);
+}
+
+.page--resell-create-share .resell-share-card {
+  position: absolute;
+  left: 11px;
+  right: 11px;
+  top: 172px;
+  width: auto;
+  min-height: 105px;
+  padding: 21px;
+  font-family: var(--mc-font-paper);
+}
+
+.page--resell-create-share .resell-share-card p {
+  position: relative;
+  top: -11px;
+}
+
+.page--resell-create-share .resell-share-card__preview {
+  font-family: var(--mc-serif-light);
+}
+
+.page--resell-create-share .resell-share-head {
+  position: absolute;
+  left: 17px;
+  top: 347px;
+  width: 181px;
+  display: block;
+  font-family: var(--mc-serif-light);
+}
+
+.page--resell-create-share .resell-share-head__title {
+  font-family: var(--mc-serif);
+  white-space: nowrap;
+}
+
+.page--resell-create-share .resell-share-head span {
+  position: absolute;
+  left: 169px;
+  top: 4px;
+  width: 55px;
+  white-space: nowrap;
+  font-family: var(--mc-serif-light);
+}
+
+.page--resell-create-share .resell-share-head + .resell-create__sub {
+  position: absolute;
+  left: 17px;
+  top: 379px;
+  width: 306px;
+  margin: 0 !important;
+  color: #4b5563;
+  font-family: var(--mc-serif-light);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.page--resell-create-share .resell-journey-opts {
+  position: absolute;
+  left: 14px;
+  top: 425px;
+  width: 332px;
+  gap: 12px;
+}
+
+.page--resell-create-share .resell-journey-opt {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 84px;
+  padding: 17px;
+  font-family: var(--mc-font-paper);
+  cursor: default;
+}
+
+.page--resell-create-share .resell-journey-opt.is-on {
+  height: 219px;
+}
+
+.page--resell-create-share .resell-journey-opt:nth-child(3) {
+  height: 82px;
+}
+
+.page--resell-create-share .resell-journey-opt:nth-child(3).is-on {
+  height: 219px;
+}
+
+.resell-journey-opt__toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.page--resell-create-share .resell-journey-opt__box {
+  margin: -3px 0 0;
+}
+
+.resell-journey-opt__box img {
+  display: block;
+  width: 20px;
+  height: 20px;
+}
+
+.page--resell-create-share .resell-journey-opt strong {
+  margin: 0;
+  font-family: var(--mc-font-paper);
+}
+
+.resell-journey-opt__copy {
+  position: absolute;
+  left: 40px;
+  right: 17px;
+  top: 43px;
+}
+
+.resell-journey-opt.is-on .resell-journey-opt__copy {
+  top: auto;
+  bottom: 9px;
+  left: 22px;
+}
+
+.resell-journey-opt__situations {
+  position: absolute;
+  left: 17px;
+  top: 45px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.resell-journey-opt__situations > span {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 21px;
+  margin-bottom: 2px;
+  border-radius: 10px;
+  background: #262626;
+  color: #fff;
+  font-family: var(--mc-serif);
+  font-size: 9px;
+  line-height: 13px;
+}
+
+.resell-journey-opt__situations label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 21px;
+  padding-left: 8px;
+  color: #262626;
+  font-family: var(--mc-font-paper);
+  font-size: 8px;
+  cursor: pointer;
+}
+
+.resell-journey-opt__situations input {
+  position: absolute;
+  opacity: 0;
+}
+
+.resell-journey-opt__situations i {
+  width: 18px;
+  height: 18px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.resell-journey-opt__situations input:checked + i {
+  border-color: var(--mc-green);
+  background: var(--mc-green);
+  box-shadow: inset 0 0 0 4px #fff;
+}
+
+.page--resell-create-share .resell-next {
+  position: absolute;
+  left: 50%;
+  top: calc(741px + var(--share-expanded, 1) * 135px);
+  width: 335px;
+  height: 69px;
+  margin: 0;
+  transform: translateX(-50%);
+  font-family: var(--mc-serif);
+  font-size: 20px;
+}
+
 .resell-create__sub--14 {
   font-size: 14px;
   line-height: 20px;
@@ -4144,6 +5355,249 @@ img {
   text-align: right;
 }
 
+.page--resell-create-care .resell-create__title {
+  font-family: var(--mc-serif);
+  font-weight: 400;
+}
+
+.page--resell-create-care {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 689px;
+  padding: 0;
+}
+
+.page--resell-create-care .reg-progress {
+  position: absolute;
+  left: 50%;
+  top: 3px;
+  width: 358px;
+  margin: 0;
+  transform: translateX(-50%);
+}
+
+.page--resell-create-care .resell-create__title {
+  position: absolute;
+  left: 10px;
+  top: 77px;
+  width: 284px;
+  margin: 0;
+  font-size: 24px;
+  line-height: 30px;
+  letter-spacing: -0.6px;
+}
+
+.page--resell-create-care > .resell-create__sub {
+  position: absolute;
+  left: 11px;
+  top: 153px;
+  width: 340px;
+  margin: 0;
+  font-family: var(--mc-serif-light);
+}
+
+.page--resell-create-care .resell-compose {
+  position: absolute;
+  left: 8px;
+  right: 9px;
+  top: 217px;
+  width: auto;
+  height: 297px;
+}
+
+.page--resell-create-care .resell-compose textarea {
+  width: 100%;
+  height: 297px;
+  padding: 14px 40px 14px 16px;
+  font-family: var(--mc-serif-light);
+}
+
+.page--resell-create-care .resell-compose__count--end {
+  position: absolute;
+  left: 293px;
+  top: 523px;
+  width: 48px;
+  margin: 0;
+  font-family: var(--mc-serif-light);
+  text-align: left;
+}
+
+.page--resell-create-care .resell-next {
+  position: absolute;
+  left: 50%;
+  top: 590px;
+  width: 335px;
+  height: 69px;
+  margin: 0;
+  transform: translateX(-50%);
+  font-family: var(--mc-serif);
+  font-size: 20px;
+}
+
+/* Resell create — message editor, Figma 751:1877 */
+.page--resell-create-letter {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 689px;
+  padding: 0;
+}
+
+.page--resell-create-letter .reg-progress {
+  position: absolute;
+  left: 50%;
+  top: 3px;
+  width: 358px;
+  margin: 0;
+  transform: translateX(-50%);
+}
+
+.page--resell-create-letter .reg-progress__label {
+  color: #366861;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 20px;
+}
+
+.page--resell-create-letter .resell-create__title {
+  position: absolute;
+  left: 10px;
+  top: 77px;
+  width: 284px;
+  margin: 0;
+  font-family: var(--mc-serif);
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 30px;
+  letter-spacing: -0.6px;
+  color: #111827;
+}
+
+.page--resell-create-letter > .resell-create__sub {
+  position: absolute;
+  left: 11px;
+  top: 153px;
+  width: 340px;
+  margin: 0;
+  font-family: var(--mc-serif-light);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 22.75px;
+  color: #6b7280;
+}
+
+.page--resell-create-letter .resell-compose {
+  position: absolute;
+  left: 8px;
+  right: 9px;
+  top: 217px;
+  width: auto;
+  height: 297px;
+}
+
+.page--resell-create-letter .resell-compose textarea {
+  width: 100%;
+  height: 297px;
+  padding: 14px 40px 14px 16px;
+  font-family: var(--mc-serif-light);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  color: #111827;
+}
+
+.page--resell-create-letter .resell-compose__bar {
+  position: absolute;
+  left: 0;
+  top: 528px;
+  width: 100%;
+  height: 31px;
+  margin: 0;
+  display: block;
+}
+
+.page--resell-create-letter .resell-compose__ai {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 128px;
+  padding: 0 13px;
+  border-radius: 10px 10px 0 10px;
+  font-family: var(--mc-serif-light);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+}
+
+.resell-ai-helper-area {
+  position: absolute;
+  left: 50px;
+  top: 528px;
+  width: 148px;
+  height: 77px;
+}
+
+.page--resell-create-letter .resell-ai-helper-area .resell-message-helper {
+  left: 108px;
+  top: 37px;
+}
+
+.page--resell-create-letter .resell-compose__count {
+  position: absolute;
+  left: 293px;
+  top: -5px;
+  width: 48px;
+  font-family: var(--mc-serif-light);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  color: #374151;
+}
+
+.resell-message-helper {
+  position: absolute;
+  left: 158px;
+  top: 565px;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.resell-message-helper__ring {
+  position: absolute;
+  inset: 0;
+  width: 40px;
+  height: 40px;
+}
+
+.resell-message-helper__mark {
+  position: absolute;
+  left: 7px;
+  top: 6px;
+  width: 27px;
+  height: 29px;
+}
+
+.page--resell-create-letter .resell-next {
+  position: absolute;
+  left: 50%;
+  top: 620px;
+  width: 335px;
+  height: 69px;
+  margin: 0;
+  transform: translateX(-50%);
+  font-family: var(--mc-serif);
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 24px;
+  color: #fff;
+}
+
 .resell-done {
   flex: 1;
   min-height: 220px;
@@ -4160,12 +5614,70 @@ img {
   color: #111827;
 }
 
+/* Resell create — completion, Figma 751:1962 */
+.page--resell-create-done {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 416px;
+  padding: 0;
+}
+
+.page--resell-create-done .reg-progress__label {
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 20px;
+}
+
+.page--resell-create-done .resell-done {
+  position: absolute;
+  left: 50%;
+  top: 191px;
+  width: 164px;
+  min-height: 78px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateX(-50%);
+}
+
+.page--resell-create-done .resell-done__title {
+  width: 164px;
+  margin: 0;
+  font-family: var(--mc-serif-light);
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 30px;
+  letter-spacing: -0.6px;
+  text-align: center;
+}
+
+.page--resell-create-done .resell-next {
+  position: absolute;
+  left: 50%;
+  top: 347px;
+  width: 335px;
+  height: 69px;
+  margin: 0;
+  transform: translateX(-50%);
+  font-family: var(--mc-serif);
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 24px;
+}
+
 .page--resell-manage {
-  padding-top: 8px;
+  position: relative;
+  top: -22px;
+  width: 100%;
+  height: calc(100% - 98px);
+  padding: 0;
+  display: block;
 }
 
 .resell-empty--manage {
-  padding-top: 80px;
+  padding: 0;
 }
 
 .resell-dual {
@@ -4192,6 +5704,99 @@ img {
   font-size: 16px;
   line-height: 24px;
   color: #1f2937;
+}
+
+/* Resell create — optional visibility, Figma 786:3839 */
+.page--resell-create-optional {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 824px;
+  padding: 0;
+}
+
+.page--resell-create-optional .reg-progress {
+  position: absolute;
+  left: 50%;
+  top: 3px;
+  width: 358px;
+  margin: 0;
+  transform: translateX(-50%);
+}
+
+.page--resell-create-optional .resell-create__title {
+  position: absolute;
+  left: 14px;
+  top: 81px;
+  width: 299px;
+  margin: 0;
+  font-family: var(--mc-serif);
+  font-weight: 400;
+}
+
+.page--resell-create-optional .resell-opt__section {
+  position: absolute;
+  left: 14px;
+  top: 141px;
+  width: 350px;
+  margin: 0;
+  font-family: var(--mc-serif);
+  font-weight: 400;
+}
+
+.page--resell-create-optional > .resell-create__sub {
+  position: absolute;
+  left: 14px;
+  top: 177px;
+  width: 350px;
+  margin: 0;
+  font-family: var(--mc-serif-light);
+}
+
+.page--resell-create-optional .resell-opt-card {
+  position: absolute;
+  left: 18px;
+  right: 20px;
+  width: auto;
+  margin: 0;
+  font-family: var(--mc-serif-light);
+}
+
+.page--resell-create-optional .resell-opt-card:nth-of-type(1) {
+  top: 210px;
+  height: 91px;
+}
+
+.page--resell-create-optional .resell-opt-card:nth-of-type(2) {
+  top: 313px;
+  height: 74px;
+}
+
+.page--resell-create-optional .resell-opt-card strong {
+  font-family: var(--mc-serif);
+  font-weight: 400;
+}
+
+.page--resell-create-optional .resell-opt-card:nth-of-type(2) p {
+  font-family: var(--mc-font-paper);
+}
+
+.page--resell-create-optional .resell-opt-card__check img {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
+.page--resell-create-optional .resell-next {
+  position: absolute;
+  left: 50%;
+  top: 412px;
+  width: 335px;
+  height: 69px;
+  margin: 0;
+  transform: translateX(-50%);
+  font-family: var(--mc-serif);
+  font-size: 20px;
 }
 
 .resell-opt-card {
@@ -4272,12 +5877,1179 @@ img {
   padding-bottom: 28px;
 }
 
+/* Resell detail — another seller, Figma 901:10601 */
+.phone-shell__body:has(.page--resell-detail-other) {
+  padding-bottom: 0;
+}
+
+.page--resell-detail-other {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 916px;
+  padding: 0;
+}
+
+.page--resell-detail-other > .resell-create__title {
+  position: absolute;
+  left: 12px;
+  top: 2px;
+  width: 176px;
+  height: 34px;
+  margin: 0;
+  font-family: var(--mc-serif);
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 30px;
+  letter-spacing: -0.6px;
+  color: #111827;
+}
+
+.page--resell-detail-other > .resell-preview {
+  position: absolute;
+  left: 12px;
+  top: 55px;
+  width: 335px;
+  height: 749px;
+  padding: 0;
+  display: block;
+  overflow: hidden;
+}
+
+.page--resell-detail-other .resell-preview__overview {
+  position: absolute;
+  left: 23px;
+  top: 25px;
+  width: 290px;
+  height: 179px;
+  padding: 0;
+  cursor: default;
+}
+
+.page--resell-detail-other .resell-preview__overview .resell-overview__inner {
+  position: absolute;
+  left: 8px;
+  top: 6px;
+  width: 275px;
+  height: 167px;
+  padding: 25px 17px 14px;
+}
+
+.page--resell-detail-other .resell-preview__overview .resell-overview__eyebrow {
+  margin-bottom: 2px;
+  font-family: var(--mc-serif-light);
+}
+
+.page--resell-detail-other .resell-preview__overview .resell-overview__alias {
+  margin-bottom: 17px;
+  font-family: var(--mc-serif);
+  font-weight: 400;
+}
+
+.page--resell-detail-other .resell-preview__overview .resell-overview__meta {
+  gap: 5px;
+  font-family: var(--mc-font-paper);
+  font-weight: 300;
+}
+
+.page--resell-detail-other .resell-preview__overview .resell-overview__stamp-box {
+  position: absolute;
+  left: 116px;
+  top: 12px;
+  width: 194px;
+  height: 194px;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.page--resell-detail-other .resell-preview__overview .resell-overview__stamp {
+  position: static;
+  width: 168px;
+  height: 168px;
+  opacity: 0.2;
+  object-fit: contain;
+  transform: rotate(-10deg);
+}
+
+.page--resell-detail-other .resell-preview__overview .resell-overview__score {
+  right: 13px;
+  bottom: 14px;
+}
+
+.page--resell-detail-other .resell-preview__photos {
+  position: absolute;
+  left: 19px;
+  top: 230px;
+  gap: 9px;
+}
+
+.page--resell-detail-other .resell-preview__photo {
+  width: 93px;
+  height: 89px;
+}
+
+.page--resell-detail-other .resell-preview__photo img:not(.resell-preview__uploaded-photo) {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.page--resell-detail-other .resell-preview__uploaded-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.page--resell-detail-other .resell-preview__price-row {
+  position: absolute;
+  left: 23px;
+  top: 338px;
+  height: 28px;
+}
+
+.page--resell-detail-other .resell-preview__price {
+  font-family: var(--mc-serif);
+  font-weight: 400;
+}
+
+.page--resell-detail-other .resell-preview__badge {
+  font-family: var(--mc-serif-light);
+}
+
+.page--resell-detail-other .resell-preview__stats {
+  position: absolute;
+  left: 23px;
+  top: 379px;
+  gap: 6px;
+  padding: 0;
+  font-family: var(--mc-serif-light);
+}
+
+.page--resell-detail-other .resell-preview__stat::before {
+  display: none;
+}
+
+.page--resell-detail-other .resell-preview__stat img {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+
+.page--resell-detail-other .resell-preview__row {
+  position: absolute;
+  left: 8px;
+  width: 318px;
+  min-height: 44px;
+  font-family: var(--mc-serif-light);
+}
+
+.page--resell-detail-other .resell-preview__row--letter {
+  top: 441px;
+}
+
+.page--resell-detail-other .resell-preview__row--care {
+  top: 493px;
+  height: 188px;
+  align-items: flex-start;
+}
+
+.page--resell-detail-other .resell-preview__row--journey {
+  top: 692px;
+}
+
+.page--resell-detail-other .resell-preview__chev {
+  width: 24px;
+  height: 24px;
+}
+
+.page--resell-detail-other > .resell-next {
+  position: absolute;
+  left: 12px;
+  top: 827px;
+  width: 335px;
+  height: 69px;
+  margin: 0;
+  border-radius: 30px;
+  font-family: var(--mc-serif);
+  font-size: 20px;
+}
+
+/* Resell history detail — buyer, Figma 908:11022 */
+.phone-shell__body:has(.page--resell-detail-buyer) {
+  padding-bottom: 0;
+}
+
+.page--resell-detail-buyer {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 1068px;
+  padding: 0;
+}
+
+.page--resell-detail-buyer > .resell-create__title {
+  position: absolute;
+  left: 12px;
+  top: -9px;
+  margin: 0;
+  font-family: var(--mc-serif);
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 34px;
+}
+
+.page--resell-detail-buyer > .resell-preview {
+  position: absolute;
+  left: 12px;
+  top: 44px;
+  width: 335px;
+  height: 906px;
+  padding: 0;
+  display: block;
+  overflow: hidden;
+}
+
+.page--resell-detail-buyer .resell-preview__overview {
+  position: absolute;
+  left: 23px;
+  top: 27px;
+  width: 290px;
+  height: 179px;
+  padding: 0;
+}
+
+.page--resell-detail-buyer .resell-preview__overview .resell-overview__inner {
+  position: absolute;
+  left: 8px;
+  top: 6px;
+  width: 275px;
+  height: 167px;
+  padding: 25px 17px 14px;
+}
+
+.page--resell-detail-buyer .resell-preview__overview .resell-overview__eyebrow {
+  margin-bottom: 2px;
+  font-family: var(--mc-serif-light);
+}
+
+.page--resell-detail-buyer .resell-preview__overview .resell-overview__alias {
+  margin-bottom: 17px;
+  font-family: var(--mc-serif);
+  font-weight: 400;
+}
+
+.page--resell-detail-buyer .resell-preview__overview .resell-overview__meta {
+  font-family: var(--mc-font-paper);
+  font-weight: 300;
+}
+
+.page--resell-detail-buyer .resell-preview__overview .resell-overview__stamp-box {
+  position: absolute;
+  left: 116px;
+  top: 12px;
+  width: 194px;
+  height: 194px;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.page--resell-detail-buyer .resell-preview__overview .resell-overview__stamp {
+  position: static;
+  width: 168px;
+  height: 168px;
+  opacity: 0.2;
+  object-fit: contain;
+  transform: rotate(-10deg);
+}
+
+.page--resell-detail-buyer .resell-preview__overview .resell-overview__score {
+  right: 13px;
+  bottom: 14px;
+}
+
+.page--resell-detail-buyer .resell-preview__photos {
+  position: absolute;
+  left: 18px;
+  top: 230px;
+  gap: 9px;
+}
+
+.page--resell-detail-buyer .resell-preview__photo {
+  width: 93px;
+  height: 89px;
+}
+
+.page--resell-detail-buyer .resell-preview__price-row {
+  position: absolute;
+  left: 23px;
+  top: 338px;
+}
+
+.page--resell-detail-buyer .resell-preview__stats {
+  position: absolute;
+  left: 23px;
+  top: 379px;
+  padding: 0;
+}
+
+.page--resell-detail-buyer .resell-preview__stat::before {
+  display: none;
+}
+
+.page--resell-detail-buyer .resell-preview__stat img {
+  width: 14px;
+  height: 14px;
+}
+
+.page--resell-detail-buyer .resell-preview__row {
+  position: absolute;
+  left: 9px;
+  width: 318px;
+  font-family: var(--mc-serif-light);
+}
+
+.page--resell-detail-buyer .resell-preview__row--care {
+  top: 441px;
+  height: 188px;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.page--resell-detail-buyer .resell-preview.has-letter .resell-preview__row--care {
+  top: 641px;
+}
+
+.page--resell-detail-buyer .resell-preview__row--letter {
+  top: 441px;
+  height: 188px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.page--resell-detail-buyer .resell-preview__row--letter p,
+.page--resell-detail-buyer .resell-preview__row--care p {
+  margin: 10px 0 0;
+  font-family: var(--mc-serif-light);
+  font-size: 12px;
+  line-height: 18px;
+  color: #4b5563;
+  white-space: pre-wrap;
+}
+
+.page--resell-detail-buyer .resell-preview__row--journey {
+  top: 441px;
+}
+
+.page--resell-detail-buyer .resell-preview.has-letter:not(.has-care) .resell-preview__row--journey,
+.page--resell-detail-buyer .resell-preview.has-care:not(.has-letter) .resell-preview__row--journey {
+  top: 641px;
+}
+
+.page--resell-detail-buyer .resell-preview.has-letter.has-care .resell-preview__row--journey {
+  top: 844px;
+}
+
+.page--resell-detail-buyer .resell-detail__bought {
+  display: none;
+}
+
+.page--resell-detail-buyer > .resell-detail__completed {
+  position: absolute;
+  left: 21px;
+  top: 971px;
+  width: 326px;
+  height: 69px;
+  border-radius: 30px;
+  background: #262626;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mc-serif);
+  font-size: 20px;
+}
+
+/* Resell history detail — author, Figma 901:10482 */
+.phone-shell__body:has(.page--resell-detail-author) {
+  padding-bottom: 0;
+}
+
+.page--resell-detail-author {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 1068px;
+  padding: 0;
+}
+
+.page--resell-detail-author > .resell-create__title {
+  position: absolute;
+  left: 12px;
+  top: 6px;
+  width: 176px;
+  height: 34px;
+  margin: 0;
+  font-family: var(--mc-serif);
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 30px;
+  letter-spacing: -0.6px;
+}
+
+.page--resell-detail-author > .resell-preview {
+  position: absolute;
+  left: 12px;
+  top: 59px;
+  width: 335px;
+  height: 906px;
+  padding: 0;
+  display: block;
+  overflow: hidden;
+}
+
+.page--resell-detail-author .resell-preview__overview {
+  position: absolute;
+  left: 23px;
+  top: 27px;
+  width: 290px;
+  height: 179px;
+  padding: 0;
+}
+
+.page--resell-detail-author .resell-preview__overview .resell-overview__inner {
+  position: absolute;
+  left: 8px;
+  top: 6px;
+  width: 275px;
+  height: 167px;
+  border: 1px solid #fff;
+  border-radius: 20px;
+  box-sizing: border-box;
+}
+
+.page--resell-detail-author .resell-preview__photos {
+  position: absolute;
+  left: 18px;
+  top: 230px;
+  gap: 9px;
+}
+
+.page--resell-detail-author .resell-preview__photo {
+  width: 93px;
+  height: 89px;
+}
+
+.page--resell-detail-author .resell-preview__photo img:not(.resell-preview__uploaded-photo) {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.page--resell-detail-author .resell-preview__price-row {
+  position: absolute;
+  left: 23px;
+  top: 338px;
+}
+
+.page--resell-detail-author .resell-preview__stats {
+  position: absolute;
+  left: 23px;
+  top: 379px;
+  padding: 0;
+}
+
+.page--resell-detail-author .resell-preview__stat::before {
+  display: none;
+}
+
+.page--resell-detail-author .resell-preview__stat img {
+  width: 14px;
+  height: 14px;
+}
+
+.page--resell-detail-author .resell-preview__row {
+  position: absolute;
+  left: 9px;
+  width: 318px;
+  font-family: var(--mc-serif-light);
+}
+
+.page--resell-detail-author .resell-preview__row--care {
+  top: 641px;
+  height: 188px;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.page--resell-detail-author .resell-preview__row--letter {
+  top: 441px;
+  height: 188px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.page--resell-detail-author .resell-preview__row--letter p,
+.page--resell-detail-author .resell-preview__row--care p {
+  margin: 10px 0 0;
+  font-family: var(--mc-serif-light);
+  font-size: 12px;
+  line-height: 18px;
+  color: #4b5563;
+  white-space: pre-wrap;
+}
+
+.page--resell-detail-author .resell-preview__row--journey {
+  top: 844px;
+}
+
+.page--resell-detail-author > .resell-dual {
+  position: absolute;
+  left: 12px;
+  top: 986px;
+  width: 335px;
+  display: grid;
+  grid-template-columns: 161px 164px;
+  gap: 10px;
+  margin: 0;
+}
+
+.page--resell-detail-author > .resell-dual .resell-dual__btn {
+  width: 100%;
+  height: 69px;
+  border-radius: 30px;
+  font-family: var(--mc-serif);
+  font-size: 16px;
+}
+
+/* Read-only shared journey preview */
+.phone-shell__body:has(.resell-journey-preview) {
+  padding-bottom: 0;
+}
+
+.resell-journey-preview {
+  width: 335px;
+  margin: -30px auto 0;
+  padding-bottom: 24px;
+}
+
+.resell-journey-preview__head {
+  position: relative;
+  padding: 0 3px;
+}
+
+.resell-journey-preview__head h1 {
+  margin: 0;
+  font-family: var(--mc-serif);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 24px;
+  color: #1f2937;
+}
+
+.resell-journey-preview__head span {
+  position: absolute;
+  left: 169px;
+  top: 4px;
+  font-family: var(--mc-serif-light);
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.resell-journey-preview__head p {
+  margin: 8px 0 0;
+  font-family: var(--mc-serif-light);
+  font-size: 12px;
+  line-height: 18px;
+  color: #4b5563;
+}
+
+.resell-journey-preview__list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.resell-journey-preview__card {
+  position: relative;
+  min-height: 84px;
+  padding: 17px 17px 14px 58px;
+  border: 1px solid var(--mc-green);
+  border-radius: 8px;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.resell-journey-preview__card.is-selected {
+  min-height: 219px;
+}
+
+.resell-journey-preview__check {
+  position: absolute;
+  left: 17px;
+  top: 17px;
+  width: 20px;
+  height: 20px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.resell-journey-preview__card.is-selected .resell-journey-preview__check {
+  border-color: var(--mc-green);
+  background: var(--mc-green);
+}
+
+.resell-journey-preview__check img {
+  width: 20px;
+  height: 20px;
+}
+
+.resell-journey-preview__card strong {
+  font-family: var(--mc-font-paper);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  color: #1a2e26;
+}
+
+.resell-journey-preview__card > p {
+  margin: 4px 0 0;
+  font-family: var(--mc-serif-light);
+  font-size: 12px;
+  line-height: 16px;
+  color: #6b7280;
+}
+
+.resell-journey-preview__card.is-selected > p {
+  position: absolute;
+  left: 22px;
+  right: 17px;
+  bottom: 16px;
+}
+
+.resell-journey-preview__situations {
+  position: absolute;
+  left: 17px;
+  top: 54px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-family: var(--mc-font-paper);
+  font-size: 8px;
+  color: #262626;
+}
+
+.resell-journey-preview__situations > span {
+  width: 56px;
+  height: 21px;
+  margin-bottom: 2px;
+  border-radius: 10px;
+  background: #262626;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-family: var(--mc-serif);
+  font-size: 9px;
+}
+
+.resell-journey-preview__situations div {
+  height: 21px;
+  padding-left: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.resell-journey-preview__situations i {
+  width: 18px;
+  height: 18px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.resell-journey-preview__situations i.is-selected {
+  border-color: var(--mc-green);
+  background: var(--mc-green);
+  box-shadow: inset 0 0 0 4px #fff;
+}
+
+.resell-journey-preview__confirm {
+  width: 335px;
+  height: 69px;
+  margin-top: 24px;
+  border-radius: 30px;
+  background: #262626;
+  color: #fff;
+  font-family: var(--mc-serif);
+  font-size: 20px;
+}
+
+/* Resell edit — Figma 845:633 */
+.phone-shell__body:has(.resell-edit) {
+  padding-bottom: 0;
+}
+
+.resell-edit {
+  width: 335px;
+  margin: 0 auto;
+  padding-bottom: 28px;
+}
+
+.resell-edit__panel {
+  min-height: 0;
+  padding: 30px 8px 24px;
+  border-radius: 10px;
+  background: rgba(250, 241, 220, 0.58);
+  box-sizing: border-box;
+}
+
+.resell-edit__overview {
+  margin: 0 auto;
+  padding: 0;
+  cursor: default;
+}
+
+.resell-edit__overview .resell-overview__inner {
+  position: absolute;
+  left: 8px;
+  top: 6px;
+  width: 275px;
+  height: 167px;
+  padding: 25px 17px 14px;
+}
+
+.resell-edit__overview .resell-overview__eyebrow {
+  margin-bottom: 2px;
+  font-family: var(--mc-serif-light);
+}
+
+.resell-edit__overview .resell-overview__alias {
+  margin-bottom: 17px;
+  font-family: var(--mc-serif);
+  font-weight: 400;
+}
+
+.resell-edit__overview .resell-overview__meta {
+  gap: 5px;
+  font-family: var(--mc-font-paper);
+  font-weight: 300;
+}
+
+.resell-edit__overview .resell-overview__stamp-box {
+  position: absolute;
+  left: 116px;
+  top: 12px;
+  width: 194px;
+  height: 194px;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.resell-edit__overview .resell-overview__stamp {
+  position: static;
+  width: 168px;
+  height: 168px;
+  opacity: 0.2;
+  object-fit: contain;
+  transform: rotate(-10deg);
+}
+
+.resell-edit__overview .resell-overview__score {
+  right: 13px;
+  bottom: 14px;
+}
+
+.resell-edit__file {
+  display: none;
+}
+
+.resell-edit__photos {
+  display: flex;
+  gap: 9px;
+  margin-top: 23px;
+  padding: 0 12px;
+}
+
+.resell-edit__photo {
+  width: 93px;
+  height: 89px;
+  padding: 12px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(226, 226, 227, 0.4);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.resell-edit__photo > img:not(.resell-edit__uploaded) {
+  width: 48px;
+  height: 48px;
+}
+
+.resell-edit__uploaded {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.resell-edit__price-row {
+  height: 28px;
+  margin: 14px 15px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mc-serif);
+  font-size: 18px;
+  color: #1a1a1a;
+}
+
+.resell-edit__price-field {
+  display: flex;
+  align-items: center;
+}
+
+.resell-edit__price-field input {
+  width: 90px;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+}
+
+.resell-edit__condition-field select {
+  height: 19px;
+  padding: 2px 7px;
+  border: 0;
+  border-radius: 4px;
+  outline: 0;
+  background: #f3f4f6;
+  font-family: var(--mc-serif-light);
+  font-size: 10px;
+  color: #374151;
+}
+
+.resell-edit__badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f3f4f6;
+  font-family: var(--mc-serif-light);
+  font-size: 10px;
+  line-height: 15px;
+  color: #374151;
+}
+
+.resell-edit__stats {
+  margin: 13px 37px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: var(--mc-serif-light);
+  font-size: 12px;
+  line-height: 15px;
+  letter-spacing: -0.12px;
+  color: #212121;
+}
+
+.resell-edit__stats p {
+  margin: 0;
+}
+
+.resell-edit__content {
+  width: 318px;
+  min-height: 47px;
+  margin-top: 10px;
+  padding: 12px;
+  border: 0;
+  border-radius: 8px;
+  background: #f9fafb;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-family: var(--mc-serif-light);
+  font-size: 14px;
+  line-height: 20px;
+  color: #212121;
+  text-align: left;
+  cursor: pointer;
+}
+
+.resell-edit__content-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.resell-edit__content-copy > span {
+  display: block;
+}
+
+.resell-edit__content-copy small {
+  display: block;
+  margin-top: 3px;
+  font-family: var(--mc-font);
+  font-size: 10px;
+  line-height: 14px;
+  color: rgba(38, 38, 38, 0.5);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resell-edit__modify {
+  width: 89px;
+  height: 30px;
+  flex: 0 0 auto;
+  border-radius: 12px;
+  background: #ffd788;
+  font-family: var(--mc-serif-light);
+  font-size: 12px;
+  color: #212121;
+}
+
+.resell-edit__content:first-of-type {
+  margin-top: 39px;
+}
+
+.resell-edit__submit {
+  width: 335px;
+  height: 69px;
+  margin-top: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 30px;
+  background: #262626;
+  color: #fff;
+  font-family: var(--mc-serif);
+  font-size: 16px;
+  line-height: 24px;
+  cursor: pointer;
+}
+
 .page--resell-manage .resell-overview {
-  margin: 24px auto 0;
+  position: absolute;
+  left: 34px;
+  top: 154px;
+  margin: 0;
+  padding: 0;
+  animation: resell-card-enter 180ms ease-out;
+}
+
+@keyframes resell-card-enter {
+  from {
+    opacity: 0.55;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .page--resell-manage .resell-dual {
-  margin-top: 48px;
+  position: absolute;
+  left: 50%;
+  top: 491px;
+  width: 338px;
+  gap: 12px;
+  margin: 0;
+  transform: translateX(-50%);
+}
+
+.phone-shell__body:has(.page--resell-manage) {
+  overflow: hidden;
+  padding-bottom: 0;
+}
+
+.page--resell-manage-empty {
+  top: -22px;
+}
+
+.page--resell-manage .resell-create__title {
+  position: absolute;
+  left: 29px;
+  top: 21px;
+  width: 288px;
+  height: 34px;
+  margin: 0;
+  font-family: var(--mc-serif);
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 30px;
+  letter-spacing: -0.6px;
+}
+
+.page--resell-manage .resell-overview__inner {
+  position: absolute;
+  left: 8px;
+  top: 6px;
+  width: 275px;
+  height: 167px;
+  padding: 25px 17px 14px;
+}
+
+.page--resell-manage .resell-overview__eyebrow {
+  margin: 0 0 2px;
+  font-family: var(--mc-serif-light);
+  font-weight: 400;
+}
+
+.page--resell-manage .resell-overview__alias {
+  margin: 0 0 17px;
+  font-family: var(--mc-serif);
+  font-weight: 400;
+}
+
+.page--resell-manage .resell-overview__meta {
+  font-family: var(--mc-font-paper);
+  font-weight: 300;
+}
+
+.page--resell-manage .resell-overview__stamp {
+  position: static;
+  width: 168px;
+  height: 168px;
+}
+
+.page--resell-manage .resell-overview__stamp-box {
+  position: absolute;
+  left: 116px;
+  top: 12px;
+  width: 194px;
+  height: 194px;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.page--resell-manage .resell-overview__score {
+  right: 13px;
+  bottom: 14px;
+}
+
+.page--resell-manage .passport-rail {
+  position: absolute;
+  left: 148px;
+  top: 344px;
+  width: auto;
+  margin: 0;
+}
+
+.page--resell-manage .passport-rail__pill,
+.page--resell-manage .passport-rail__dot {
+  background: var(--mc-green);
+}
+
+.page--resell-manage .passport-rail__dot {
+  border: 0;
+  padding: 0;
+}
+
+.page--resell-manage .resell-dual__btn {
+  flex: 0 0 163px;
+  font-family: var(--mc-serif);
+  font-size: 20px;
+  font-weight: 400;
+}
+
+/* Shared journey overview card used by manage and create flows */
+.page--resell-manage .resell-overview,
+.page--resell-create-select .resell-overview {
+  width: 290px;
+  height: 179px;
+  padding: 0;
+  border-radius: 20px;
+  background: var(--mc-green);
+  overflow: hidden;
+}
+
+.page--resell-manage .resell-overview__inner,
+.page--resell-create-select .resell-overview__inner {
+  position: absolute;
+  left: 8px;
+  top: 6px;
+  width: 275px;
+  height: 167px;
+  padding: 25px 17px 14px;
+  border: 1px solid #fff;
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.page--resell-manage .resell-overview__eyebrow,
+.page--resell-create-select .resell-overview__eyebrow {
+  margin: 0 0 2px;
+  font-family: var(--mc-serif-light);
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--mc-gold);
+}
+
+.page--resell-manage .resell-overview__alias,
+.page--resell-create-select .resell-overview__alias {
+  margin: 0 0 17px;
+  font-family: var(--mc-serif);
+  font-size: 22px;
+  font-weight: 400;
+  letter-spacing: 0.88px;
+  color: #fff;
+}
+
+.page--resell-manage .resell-overview__meta,
+.page--resell-create-select .resell-overview__meta {
+  gap: 5px;
+  font-family: var(--mc-font-paper);
+  font-size: 12px;
+  font-weight: 300;
+  letter-spacing: -0.12px;
+  color: #fff;
+}
+
+.page--resell-manage .resell-overview__stamp-box,
+.page--resell-create-select .resell-overview__stamp-box {
+  position: absolute;
+  left: 116px;
+  top: 12px;
+  width: 194px;
+  height: 194px;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.page--resell-manage .resell-overview__stamp,
+.page--resell-create-select .resell-overview__stamp {
+  position: static;
+  width: 168px;
+  height: 168px;
+  opacity: 0.2;
+  object-fit: contain;
+  transform: rotate(-10deg);
+}
+
+.page--resell-manage .resell-overview__score,
+.page--resell-create-select .resell-overview__score {
+  right: 13px;
+  bottom: 14px;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 50px;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  text-shadow: 3px 3px 8px #fff;
 }
 
 /* Register */
@@ -4825,6 +7597,589 @@ img {
 .modal-actions .primary {
   background: #262626;
   color: #fff;
+}
+
+/* Resell delete confirmation — Figma 845:488 */
+.modal-backdrop--resell-delete {
+  padding: 20px;
+  background: rgba(38, 38, 38, 0.6);
+}
+
+.modal-card--resell-delete {
+  position: relative;
+  width: 335px;
+  max-width: none;
+  height: 184px;
+  padding: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.modal-card--resell-delete .modal-card__logo {
+  position: relative;
+  width: 100%;
+  height: 56px;
+  border-bottom: 0.5px solid rgba(38, 38, 38, 0.6);
+  box-sizing: border-box;
+}
+
+.modal-card--resell-delete .modal-card__logo img {
+  position: absolute;
+  left: 50%;
+  top: 19px;
+  width: 90px;
+  height: 27px;
+  max-width: none;
+  object-fit: cover;
+  transform: translateX(-50%);
+}
+
+.modal-card--resell-delete .modal-card__title {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 76px;
+  margin: 0;
+  color: #262626;
+  font-family: var(--mc-serif);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 20px;
+}
+
+.modal-card--resell-delete .modal-card__body {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 96px;
+  margin: 0;
+  color: #262626;
+  font-family: var(--mc-serif-light);
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.modal-card--resell-delete .modal-actions {
+  position: absolute;
+  left: 50%;
+  bottom: 17px;
+  width: 290px;
+  gap: 8px;
+  transform: translateX(-50%);
+}
+
+.modal-card--resell-delete .modal-actions button {
+  flex: 0 0 141px;
+  width: 141px;
+  height: 31px;
+  padding: 0;
+  border: 0;
+  border-radius: 15px;
+  background: #262626;
+  color: #fff;
+  font-family: var(--mc-serif);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 14.4px;
+  letter-spacing: -0.12px;
+}
+
+/* Resell purchase confirmation — Figma 901:10832 */
+.modal-backdrop--resell-buy {
+  padding: 20px;
+  background: rgba(38, 38, 38, 0.6);
+}
+
+.modal-card--resell-buy {
+  position: relative;
+  width: 335px;
+  max-width: none;
+  height: 184px;
+  padding: 0;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.modal-card--resell-buy .modal-card__logo {
+  position: relative;
+  width: 100%;
+  height: 56px;
+  border-bottom: 0.5px solid rgba(38, 38, 38, 0.6);
+}
+
+.modal-card--resell-buy .modal-card__logo img {
+  position: absolute;
+  left: 50%;
+  top: 19px;
+  width: 90px;
+  height: 27px;
+  max-width: none;
+  object-fit: cover;
+  transform: translateX(-50%);
+}
+
+.modal-card--resell-buy .modal-card__body {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 76px;
+  margin: 0;
+  color: #262626;
+  font-family: var(--mc-serif-light);
+  font-size: 14px;
+  line-height: 20px;
+  text-align: center;
+}
+
+.modal-card--resell-buy .modal-actions {
+  position: absolute;
+  left: 50%;
+  bottom: 17px;
+  width: 287px;
+  gap: 5px;
+  transform: translateX(-50%);
+}
+
+.modal-card--resell-buy .modal-actions button {
+  flex: 0 0 141px;
+  width: 141px;
+  height: 31px;
+  padding: 0;
+  border: 0;
+  border-radius: 15px;
+  background: #262626;
+  color: #fff;
+  font-family: var(--mc-serif);
+  font-size: 12px;
+  line-height: 14.4px;
+  letter-spacing: -0.12px;
+}
+
+/* Resell purchase complete — Figma 901:10856 */
+.phone-shell__body:has(.resell-purchase-complete) {
+  position: relative;
+  overflow: hidden;
+  padding-bottom: 0;
+}
+
+.resell-purchase-complete {
+  position: relative;
+  width: 100%;
+  height: 703px;
+}
+
+.resell-purchase-complete__plane {
+  position: absolute;
+  left: 158px;
+  top: 99px;
+  width: 43px;
+  height: 43px;
+  object-fit: contain;
+}
+
+.resell-purchase-complete__message {
+  position: absolute;
+  left: 42px;
+  top: 192px;
+  width: 290px;
+  margin: 0;
+  font-family: var(--mc-serif-light);
+  font-size: 15px;
+  line-height: 30px;
+  letter-spacing: -0.6px;
+  text-align: center;
+  color: #111827;
+}
+
+.resell-purchase-complete__confirm {
+  position: absolute;
+  left: 14px;
+  top: 400px;
+  width: 335px;
+  height: 69px;
+  border-radius: 30px;
+  background: #262626;
+  color: #fff;
+  font-family: var(--mc-serif);
+  font-size: 20px;
+  line-height: 24px;
+}
+
+/* Purchased digital passport — Figma 1041:677 */
+.phone-shell__body:has(.resell-passport-page) {
+  padding-bottom: 0;
+  background: #fff;
+}
+
+.resell-passport-page {
+  position: relative;
+  width: 100%;
+  min-height: 100%;
+  padding: 20px;
+  background: #fff;
+}
+
+.resell-passport-card {
+  position: relative;
+  width: 335px;
+  height: 471px;
+  border: 1px solid var(--mc-green);
+  border-radius: 20px;
+  overflow: hidden;
+  background: rgba(38, 38, 38, 0.95);
+  color: #fff;
+  font-family: var(--mc-serif);
+  cursor: pointer;
+  animation: resell-passport-flip-in 220ms ease-out;
+}
+
+.resell-passport-card--back {
+  width: 335px;
+  min-height: 473px;
+  cursor: pointer;
+  animation: resell-passport-flip-in 220ms ease-out;
+}
+
+.resell-passport-card--front {
+  width: 335px;
+  cursor: pointer;
+  animation: resell-passport-flip-in 220ms ease-out;
+}
+
+@keyframes resell-passport-flip-in {
+  from {
+    opacity: 0.7;
+    transform: rotateY(12deg);
+  }
+  to {
+    opacity: 1;
+    transform: rotateY(0);
+  }
+}
+
+.resell-passport-card__stamp {
+  position: absolute;
+  left: 127px;
+  top: -70px;
+  width: 188px;
+  height: 189px;
+  opacity: 0.2;
+  object-fit: contain;
+  transform: rotate(-10deg);
+}
+
+.resell-passport-card__serial {
+  position: absolute;
+  left: 36px;
+  top: 61px;
+  width: 75px;
+  margin: 0;
+  font-family: var(--mc-serif-light);
+  font-size: 8px;
+  text-align: center;
+}
+
+.resell-passport-card__photo-wrap {
+  position: absolute;
+  left: 80px;
+  top: 76px;
+  width: 175px;
+  height: 190px;
+  border: 1px solid #fff;
+  overflow: hidden;
+}
+
+.resell-passport-card__photo {
+  width: 175px;
+  height: 190px;
+  object-fit: cover;
+}
+
+.resell-passport-card__names {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 279px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 6px;
+}
+
+.resell-passport-card__names strong {
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 20px;
+  letter-spacing: -0.17px;
+}
+
+.resell-passport-card__names span {
+  font-family: var(--mc-serif-light);
+  font-size: 9px;
+}
+
+.resell-passport-card__keeper {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 320px;
+  margin: 0;
+  font-size: 12px;
+  text-align: center;
+}
+
+.resell-passport-card__info {
+  position: absolute;
+  left: 65px;
+  top: 357px;
+  width: 212px;
+  min-height: 75px;
+  padding-left: 12px;
+  border-left: 1px solid rgba(255, 255, 255, 0.85);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.resell-passport-card__info > div {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.resell-passport-card__info strong {
+  font-size: 13px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.resell-passport-card__info span {
+  font-family: var(--mc-serif-light);
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.7);
+  white-space: nowrap;
+}
+
+.resell-passport-page__confirm {
+  position: absolute;
+  left: 20px;
+  top: 541px;
+  width: 335px;
+  height: 69px;
+  margin: 0;
+  border-radius: 30px;
+  background: #262626;
+  color: #fff;
+  font-family: var(--mc-serif);
+  font-size: 20px;
+  line-height: 24px;
+}
+
+/* Purchased product alias registration — Figma 901:10906 */
+.phone-shell__body:has(.resell-alias-page) {
+  padding-bottom: 0;
+}
+
+.resell-alias-page {
+  position: relative;
+  width: 100%;
+  height: 560px;
+  padding: 0 9px;
+}
+
+.resell-alias-page h1 {
+  margin: 0 0 10px 2px;
+  font-family: var(--mc-serif);
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 34px;
+  letter-spacing: -0.6px;
+  color: #111827;
+}
+
+.resell-alias-page__intro {
+  margin: 0 0 16px 5px;
+  font-family: var(--mc-serif-light);
+  font-size: 12px;
+  line-height: 22.75px;
+  color: #6b7280;
+}
+
+.resell-alias-product {
+  width: 350px;
+  height: 99px;
+  margin-left: -4px;
+  padding: 7px 17px;
+  border: 1px solid var(--mc-green);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.resell-alias-product img {
+  width: 64px;
+  height: 64px;
+  border-radius: 2px;
+  object-fit: cover;
+}
+
+.resell-alias-product div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.resell-alias-product span {
+  font-family: var(--mc-font-paper);
+  font-size: 12px;
+  color: #5d5e66;
+}
+
+.resell-alias-product strong {
+  font-family: var(--mc-serif);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.resell-alias-page__label {
+  display: block;
+  margin: 16px 0 10px 5px;
+  font-family: var(--mc-serif);
+  font-size: 16px;
+  color: #1f2937;
+}
+
+.resell-alias-page > input {
+  width: 358px;
+  height: 52px;
+  padding: 16px;
+  border: 0;
+  border-radius: 10px;
+  outline: 0;
+  background: rgba(253, 229, 171, 0.58);
+  font-family: var(--mc-serif-light);
+  font-size: 14px;
+}
+
+.resell-alias-page__count {
+  margin: 4px 7px 16px 0;
+  font-family: var(--mc-serif-light);
+  font-size: 14px;
+  text-align: right;
+  color: #374151;
+}
+
+.resell-alias-info {
+  width: 331px;
+  min-height: 74px;
+  margin: 0 auto;
+  padding: 17px 14px;
+  border: 1px solid var(--mc-green);
+  border-radius: 10px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.resell-alias-info > span {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--mc-green);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--mc-green);
+  font-family: serif;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.resell-alias-info p {
+  margin: 0;
+  font-family: var(--mc-font-paper);
+  font-size: 14px;
+  line-height: 20px;
+  color: #262626;
+}
+
+.resell-alias-page__submit {
+  width: 335px;
+  height: 69px;
+  margin: 28px 0 0 5px;
+  border-radius: 30px;
+  background: #262626;
+  color: #fff;
+  font-family: var(--mc-serif);
+  font-size: 20px;
+}
+
+.resell-alias-page__submit:disabled {
+  opacity: 0.45;
+}
+
+.modal-backdrop--resell-empty-notice {
+  padding: 12px;
+  background: transparent;
+  pointer-events: none;
+}
+
+.modal-card--resell-empty-notice {
+  position: relative;
+  width: 335px;
+  max-width: none;
+  height: 160px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.modal-card--resell-empty-notice .modal-card__body {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -31px;
+  margin: 0;
+  color: #1f2937;
+  font-family: var(--mc-serif-light);
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 30px;
+  text-align: center;
+}
+
+.modal-card--resell-empty-notice .modal-actions {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 7px;
+  display: block;
+}
+
+.modal-card--resell-empty-notice .modal-actions button {
+  width: 100%;
+  height: 69px;
+  padding: 0;
+  border: 0;
+  border-radius: 30px;
+  background: #262626;
+  color: #fff;
+  font-family: var(--mc-serif);
+  font-size: 20px;
+  font-weight: 400;
+  pointer-events: auto;
+}
+
+.page--resell-manage-empty .resell-create__title {
+  top: 18px;
+  height: 40px;
+  line-height: 34px;
+  overflow: visible;
 }
 
 .empty-state {
