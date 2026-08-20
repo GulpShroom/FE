@@ -7,6 +7,7 @@ const defaultProfile = {
   id: seedUser.id,
   userId: seedUser.id,
   name: seedUser.name,
+  nickname: seedUser.name,
   handle: seedUser.handle,
   ownedCount: seedUser.ownedCount,
   avatarUrl: null,
@@ -22,8 +23,14 @@ export function ProfileProvider({ children }) {
         if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
           const userId = parsed.userId ?? parsed.id ?? defaultProfile.userId
           // ownedCount는 API로만 갱신 — 세션에 남은 mock(12) 값이 깜빡이지 않게 무시
-          const { ownedCount: _staleOwnedCount, ...rest } = parsed
-          return { ...defaultProfile, ...rest, id: userId, userId, ownedCount: 0 }
+          return {
+            ...defaultProfile,
+            ...parsed,
+            id: userId,
+            userId,
+            nickname: parsed.nickname ?? parsed.name ?? defaultProfile.nickname,
+            ownedCount: 0,
+          }
         }
         window.sessionStorage.removeItem('mcarry-profile')
       } catch {
@@ -59,6 +66,7 @@ export function ProfileProvider({ children }) {
           id: userId,
           userId,
           name: selected.nickname || profile.name,
+          nickname: selected.nickname || profile.nickname || profile.name,
           profileType: selected.profileType,
           ownedCount: selected.ownedCount ?? 0,
         }
