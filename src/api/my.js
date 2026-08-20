@@ -45,6 +45,22 @@ export function createDiagnosis(productId, { userId, photos }) {
   })
 }
 
+/** POST /transfers/{transferId}/letter/draft */
+export function createLetterDraft(transferId, { userId, prompt } = {}) {
+  return api.post(`/transfers/${toApiId(transferId)}/letter/draft`, {
+    userId: userId == null ? undefined : toApiId(userId),
+    prompt,
+  })
+}
+
+/** GET /products/{productId}/diagnosis */
+export async function getProductDiagnoses(productId, { userId } = {}) {
+  const data = await api.get(`/products/${toApiId(productId)}/diagnosis`, {
+    params: userId == null ? undefined : { userId: toApiId(userId) },
+  })
+  return Array.isArray(data) ? data : data?.diagnoses ?? []
+}
+
 /** 목록 GET API가 없어 세션에만 보관 (서버 이력 조회 불가 시 대비) */
 export function getLocalCareTips(productId) {
   return readCache(CARE_CACHE, productId)

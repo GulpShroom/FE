@@ -5068,7 +5068,7 @@ a.ai-repair-cta {
   position: relative;
   display: block;
   width: 100%;
-  height: 795px;
+  height: 850px;
   padding: 0;
 }
 
@@ -5140,7 +5140,7 @@ a.ai-repair-cta {
 .page--resell-create-info .resell-field--price {
   position: absolute;
   left: 14px;
-  top: 619px;
+  top: 675px;
   width: 331px;
   gap: 12px;
 }
@@ -5166,6 +5166,18 @@ a.ai-repair-cta {
   font-family: var(--mc-serif-light);
 }
 
+.page--resell-create-info .resell-condition__ai {
+  display: none;
+}
+
+.page--resell-create-info .resell-condition__opts {
+  display: none;
+}
+
+.page--resell-create-info .resell-condition__note {
+  display: none;
+}
+
 .page--resell-create-info .resell-price input,
 .page--resell-create-info .resell-price span {
   font-family: var(--mc-serif-light);
@@ -5174,13 +5186,27 @@ a.ai-repair-cta {
 .page--resell-create-info .resell-next {
   position: absolute;
   left: 50%;
-  top: 726px;
+  top: calc(var(--info-price-top, 675px) + 90px);
+  bottom: auto;
   width: 335px;
   height: 69px;
   margin: 0;
   transform: translateX(-50%);
   font-family: var(--mc-serif);
   font-size: 20px;
+}
+
+.page--resell-info-no-diagnosis {
+  height: 742px;
+}
+
+.page--resell-info-no-diagnosis .resell-field--price {
+  top: 567px;
+}
+
+.page--resell-info-no-diagnosis .resell-next {
+  top: calc(var(--info-price-top, 567px) + 90px);
+  bottom: auto;
 }
 
 .phone-shell__body:has(.page--resell-create-guide) {
@@ -5481,15 +5507,50 @@ a.ai-repair-cta {
 .resell-diagnosis__empty {
   position: relative;
   width: 351px;
-  height: 217px;
+  height: 233px;
   margin: 0 auto;
-  padding-top: 30px;
-  border: 1px dashed var(--mc-green);
+  padding: 17px 17px 14px;
+  border: 1px solid #e2e5ed;
   border-radius: 10px;
-  background: #fff;
-  text-align: center;
+  background: #f3f4f7;
+  text-align: left;
   box-sizing: border-box;
 }
+
+.resell-diagnosis__grade {
+  position: absolute;
+  right: 16px;
+  top: 16px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.resell-diagnosis__card--grade-1 .resell-diagnosis__grade,
+.resell-diagnosis__card--grade-2 .resell-diagnosis__grade { color: #ef6b45; }
+.resell-diagnosis__card--grade-3 .resell-diagnosis__grade,
+.resell-diagnosis__card--grade-4 .resell-diagnosis__grade { color: #d59b27; }
+.resell-diagnosis__card--grade-5 .resell-diagnosis__grade { color: #2f9b70; }
+
+.care-row__grade {
+  display: block;
+  width: 42px;
+  height: 4px;
+  margin-left: auto;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #ececec;
+}
+
+.care-row__grade i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #d59b27;
+}
+
+.care-row--grade-1 .care-row__grade i,
+.care-row--grade-2 .care-row__grade i { background: #ef6b45; }
+.care-row--grade-5 .care-row__grade i { background: #2f9b70; }
 
 .resell-diagnosis__empty img {
   display: block;
@@ -5501,40 +5562,68 @@ a.ai-repair-cta {
 .resell-diagnosis__empty strong {
   display: block;
   color: #424242;
-  font-size: 14px;
-  font-weight: 400;
+  font-size: 15px;
+  font-weight: 700;
   line-height: 20px;
 }
 
-.resell-diagnosis__empty p {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 26px;
-  margin: 0;
-  color: #9ca3af;
-  font-size: 11px;
-  line-height: 16px;
+.resell-diagnosis__empty strong em {
+  color: #f05d66;
+  font-style: normal;
 }
 
-.resell-diagnosis__empty button {
-  min-width: 110px;
-  height: 31px;
-  margin-top: 9px;
-  padding: 0 18px;
-  border: 0;
-  border-radius: 999px;
-  background: #ffda83;
-  color: #212121;
-  font-family: var(--mc-serif);
+.resell-diagnosis__guide {
+  margin-top: 13px;
+  color: #333;
   font-size: 12px;
+  line-height: 18px;
+}
+
+.resell-diagnosis__guide p {
+  margin: 0;
+}
+
+.resell-diagnosis__guide p span {
+  display: inline-block;
+  width: 18px;
+  color: #202124;
+  font-size: 15px;
+  line-height: 18px;
+}
+
+.resell-diagnosis__guide small {
+  display: block;
+  margin: 7px 0 5px;
+  color: #777;
+  font-size: 10px;
+  line-height: 15px;
+}
+
+.resell-diagnosis__guide-note {
+  color: #ff7f84;
+  font-size: 10px;
+  line-height: 15px;
+}
+
+.resell-diagnosis__empty .resell-diagnosis__guide-action {
+  min-width: 90px;
+  height: 25px;
+  margin-top: 7px;
+  padding: 0 15px;
+  border: 0;
+  border-radius: 8px;
+  background: #ff939b;
+  color: #fff;
+  font-family: inherit;
+  font-size: 11px;
   cursor: pointer;
 }
 
 .page--resell-create-defaults .resell-next {
   position: absolute;
   left: 50%;
-  top: 1144px;
+  top: auto;
+  bottom: 16px;
   width: 335px;
   height: 69px;
   margin: 0;
@@ -5650,11 +5739,17 @@ a.ai-repair-cta {
   height: 84px;
   padding: 17px;
   font-family: var(--mc-font-paper);
+  border-color: #262626;
+  border-radius: 8px;
   cursor: default;
 }
 
 .page--resell-create-share .resell-journey-opt.is-on {
-  height: 219px;
+  /* Figma 824:4710: the selected journey is a single, compact card. */
+  height: 263px;
+  border-color: #262626;
+  border-radius: 8px;
+  background: #fff;
 }
 
 .page--resell-create-share .resell-journey-opt:nth-child(3) {
@@ -5662,7 +5757,7 @@ a.ai-repair-cta {
 }
 
 .page--resell-create-share .resell-journey-opt:nth-child(3).is-on {
-  height: 219px;
+  height: 263px;
 }
 
 .resell-journey-opt__toggle {
@@ -5678,13 +5773,15 @@ a.ai-repair-cta {
 }
 
 .page--resell-create-share .resell-journey-opt__box {
-  margin: -3px 0 0;
+  width: 18px;
+  height: 18px;
+  margin: -2px 0 0;
 }
 
 .resell-journey-opt__box img {
   display: block;
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
 }
 
 .page--resell-create-share .resell-journey-opt strong {
@@ -5709,9 +5806,28 @@ a.ai-repair-cta {
   position: absolute;
   left: 17px;
   top: 45px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 56px 56px;
+  gap: 8px;
+  width: calc(100% - 34px);
+}
+
+.resell-journey-opt__category {
+  min-width: 0;
+}
+
+.resell-journey-opt__category > span {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 21px;
+  margin-bottom: 2px;
+  border-radius: 10px;
+  background: #262626;
+  color: #fff;
+  font-family: var(--mc-serif);
+  font-size: 9px;
+  line-height: 13px;
 }
 
 .resell-journey-opt__situations > span {
@@ -5737,7 +5853,36 @@ a.ai-repair-cta {
   color: #262626;
   font-family: var(--mc-font-paper);
   font-size: 8px;
+  line-height: 12px;
   cursor: pointer;
+}
+
+.resell-journey-opt__category:first-child label {
+  height: auto;
+  min-height: 21px;
+  align-items: flex-start;
+  padding-left: 8px;
+}
+
+.resell-journey-opt__category:first-child label i {
+  flex: 0 0 18px;
+  margin-top: 1px;
+}
+
+.page--resell-create-share .resell-journey-opt--featured .resell-journey-opt__category:first-child label {
+  transform: translateY(3px);
+}
+
+.page--resell-create-share .resell-journey-opt--featured .resell-journey-opt__category:not(:first-child) label {
+  transform: translateY(3px);
+}
+
+.page--resell-create-share .resell-journey-opt--featured .resell-journey-opt__category:first-child label {
+  transform: none;
+}
+
+.page--resell-create-share .resell-journey-opt--featured .resell-journey-opt__category:first-child label > span {
+  transform: translateY(2px);
 }
 
 .resell-journey-opt__situations input {
@@ -5761,15 +5906,21 @@ a.ai-repair-cta {
 }
 
 .page--resell-create-share .resell-next {
-  position: absolute;
-  left: 50%;
-  top: calc(741px + var(--share-expanded, 1) * 135px);
-  width: 335px;
+  position: relative;
+  left: auto;
+  top: auto;
+  width: 100%;
   height: 69px;
-  margin: 0;
-  transform: translateX(-50%);
+  /* The parent stack already contributes a 12px gap; add 3px for 15px total. */
+  margin: 3px 0 0;
+  transform: none;
   font-family: var(--mc-serif);
   font-size: 20px;
+}
+
+.page--resell-create-share .resell-journey-opt--featured .resell-journey-opt__situations {
+  grid-template-columns: 1fr;
+  gap: 5px;
 }
 
 .resell-create__sub--14 {
@@ -5963,6 +6114,72 @@ a.ai-repair-cta {
   font-size: 14px;
   line-height: 20px;
   color: #212121;
+}
+
+.resell-condition__diagnosis {
+  padding: 10px 2px 11px;
+  color: #333;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.resell-condition__diagnosis.is-empty {
+  display: none;
+}
+
+.resell-condition__no-diagnosis {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 62px;
+  padding: 8px 2px;
+  color: #ff7f84;
+  font-size: 11px;
+}
+
+.resell-condition__no-diagnosis p {
+  margin: 0;
+}
+
+.resell-condition__no-diagnosis button {
+  height: 27px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 8px;
+  background: #ff939b;
+  color: #fff;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.resell-condition__diagnosis p {
+  margin: 0;
+}
+
+.resell-condition__diagnosis small {
+  display: block;
+  margin: 7px 0 5px;
+  color: #777;
+  font-size: 10px;
+  line-height: 15px;
+}
+
+.resell-condition__diagnosis-note {
+  color: #ff7f84;
+  font-size: 10px;
+  line-height: 15px;
+}
+
+.resell-condition__diagnosis button {
+  height: 25px;
+  margin-top: 7px;
+  padding: 0 15px;
+  border: 0;
+  border-radius: 8px;
+  background: #ff939b;
+  color: #fff;
+  font-size: 11px;
+  cursor: pointer;
 }
 
 .resell-condition__opts {

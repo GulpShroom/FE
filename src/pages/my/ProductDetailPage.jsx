@@ -1,7 +1,7 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
 import { AppShell } from '../../components/AppShell'
-import { getLocalCareTips, getLocalDiagnoses } from '../../api/my'
+import { getLocalCareTips, getLocalDiagnoses, getProductDiagnoses } from '../../api/my'
 import {
   getDigitalPassport,
   getProductLineage,
@@ -13,11 +13,14 @@ import diamondIcon from '../../assets/final/diamond.svg'
 import bagFallback from '../../assets/final/bag-1.png'
 
 function HistoryRow({ item, onOpen }) {
+  const grade = Number(item.conditionGrade)
+  const gradeClass = Number.isFinite(grade) ? ` care-row--grade-${Math.max(1, Math.min(5, grade))}` : ''
   return (
-    <button type="button" className="care-row" onClick={() => onOpen(item)}>
+    <button type="button" className={`care-row${gradeClass}`} onClick={() => onOpen(item)}>
       <img className="care-row__diamond" src={diamondIcon} alt="" width={15} height={15} />
       <span className="care-row__title">{item.short ?? item.title}</span>
       <span className="care-row__date">{item.date}</span>
+      {Number.isFinite(grade) ? <span className="care-row__grade" aria-label={`상태 등급 ${grade}점`}><i style={{ width: `${grade * 20}%` }} /></span> : null}
       <span className="care-row__chevron" aria-hidden>
         ›
       </span>
@@ -71,6 +74,23 @@ function matchesGeneration(itemGen, filter) {
   return String(itemGen ?? '') === String(filter)
 }
 
+function mapDiagnosis(item, index) {
+  const generation = Number(item.generation) || 1
+  const result = item.resultText || item.result_text || ''
+  return {
+    ...item,
+    id: item.diagnosisId ?? `diagnosis-${generation}-${item.diagnosedAt ?? index}`,
+    generation,
+    keeper: `${generation}${generation === 1 ? 'st' : generation === 2 ? 'nd' : generation === 3 ? 'rd' : 'th'} Keeper`,
+    date: String(item.diagnosedAt || item.diagnosed_at || '').replace(/-/g, '. '),
+    short: result,
+    title: result,
+    result,
+    solution: item.solutionText || item.solution_text || '',
+    conditionGrade: item.conditionGrade,
+  }
+}
+
 export default function ProductDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -89,13 +109,19 @@ export default function ProductDetailPage() {
 
   useEffect(() => {
     let cancelled = false
-    Promise.all([getDigitalPassport(id), getProductLineage(id)])
-      .then(([passportData, lineageData]) => {
+    Promise.all([
+      getDigitalPassport(id),
+      getProductLineage(id),
+      getProductDiagnoses(id).catch(() => []),
+    ])
+      .then(([passportData, lineageData, diagnosisData]) => {
         if (cancelled) return
         setProduct(mapDigitalPassport(passportData))
         setLineage((lineageData?.generations ?? []).map(mapLineageGeneration))
         setCareTips(getLocalCareTips(id))
-        setDiagnoses(getLocalDiagnoses(id))
+        setDiagnoses((diagnosisData ?? []).map(mapDiagnosis).sort((a, b) => (
+          a.generation - b.generation || String(a.date).localeCompare(String(b.date))
+        )))
         setLoadError(null)
         setLoadedKey(fetchKey)
       })
@@ -129,6 +155,10 @@ export default function ProductDetailPage() {
   }, [lineage])
 
   const filteredDiagnoses = diagnoses.filter((d) => matchesGeneration(d.generation, diagGen))
+  const currentGeneration = lineage.reduce((max, item) => Math.max(max, Number(item.generation) || 0), 0)
+  const hasCurrentDiagnosis = currentGeneration > 0
+    ? diagnoses.some((item) => Number(item.generation) === currentGeneration)
+    : diagnoses.length > 0
   const filteredCareTips = careTips.filter((c) => matchesGeneration(c.generation, careGen))
 
   return (
@@ -168,9 +198,11 @@ export default function ProductDetailPage() {
               value={diagGen}
               onChange={setDiagGen}
             />
-            <Link to={`/my/products/${id}/ai`} className="care-section__cta">
-              AI 상태 진단 하러 가기
-            </Link>
+            {!hasCurrentDiagnosis ? (
+              <Link to={`/my/products/${id}/ai`} className="care-section__cta">
+                AI 상태 진단 하러 가기
+              </Link>
+            ) : null}
           </div>
 
           <div className="care-rows">

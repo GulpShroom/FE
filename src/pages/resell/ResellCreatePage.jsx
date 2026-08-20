@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { AppShell } from '../../components/AppShell'
 import { currentUser, products } from '../../data/mock'
 import planeTip from '../../assets/final/progress-plane.png'
 import cameraIcon from '../../assets/final/camera.svg'
 import checkCircleIcon from '../../assets/final/resell-check-circle.svg'
-import documentAddIcon from '../../assets/final/resell-document-add.svg'
 import selectedCheckIcon from '../../assets/final/resell-selected-check.svg'
 import messageHelperRing from '../../assets/final/resell-message-helper.svg'
 import messageHelperMark from '../../assets/final/resell-message-connector.svg'
@@ -15,6 +14,7 @@ import { resellProductDummies } from '../../data/resellDummies'
 import { createResell, uploadResellPhoto } from '../../api/resells'
 import { getMyProducts, getProductSummary } from '../../api/dashboard'
 import { useProfile } from '../../context/ProfileContext'
+import { createCareTip, createLetterDraft, getProductDiagnoses } from '../../api/my'
 
 const steps = [
   'select',
@@ -70,26 +70,44 @@ const SHARE_JOURNEYS = [
   },
 ]
 
+function formatDiagnosisDate(value) {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value).replace(/-/g, '.').slice(0, 10)
+  return `${date.getFullYear()}. ${String(date.getMonth() + 1).padStart(2, '0')}. ${String(date.getDate()).padStart(2, '0')}`
+}
+
+function keeperLabel(generation) {
+  const n = Number(generation)
+  const suffix = n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th'
+  return `${n}${suffix} keeper`
+}
+
 export default function ResellCreatePage() {
   const navigate = useNavigate()
   const location = useLocation()
+  const [searchParams] = useSearchParams()
   const { profile } = useProfile()
   const sellerId = profile?.userId ?? profile?.id ?? currentUser.id
   const returnStep = steps.indexOf(location.state?.resellStep)
   const [step, setStep] = useState(returnStep >= 0 ? returnStep : 0)
   const [productId, setProductId] = useState(
-    location.state?.resellProductId ?? products[0]?.id ?? '',
+    location.state?.resellProductId ?? searchParams.get('productId') ?? products[0]?.id ?? '',
   )
   const [price, setPrice] = useState('')
   const [condition, setCondition] = useState('S')
   const [photos, setPhotos] = useState([null, null, null])
+  const [photoUrls, setPhotoUrls] = useState(location.state?.resellPhotoUrls ?? [null, null, null])
+  const [photoUploading, setPhotoUploading] = useState(false)
   const [photoSlot, setPhotoSlot] = useState(0)
   const photoInputRef = useRef(null)
   const [letter, setLetter] = useState(location.state?.resellLetter ?? '')
   const [careTip, setCareTip] = useState(location.state?.resellCareTip ?? '')
-  const [includeLetter, setIncludeLetter] = useState(true)
-  const [includeCare, setIncludeCare] = useState(false)
+  const [includeLetter, setIncludeLetter] = useState(location.state?.resellLetterShared ?? true)
+  const [includeCare, setIncludeCare] = useState(location.state?.resellCaretipShared ?? false)
   const [aiPromptOpen, setAiPromptOpen] = useState(false)
+  const [careTipSubmitting, setCareTipSubmitting] = useState(false)
+  const [careTipError, setCareTipError] = useState('')
   const [shareSelections, setShareSelections] = useState(
     location.state?.resellShareSelections ?? [0],
   )
@@ -101,6 +119,8 @@ export default function ResellCreatePage() {
   const [ownedProducts, setOwnedProducts] = useState([])
   const [productsLoading, setProductsLoading] = useState(true)
   const [productsError, setProductsError] = useState('')
+  const [diagnoses, setDiagnoses] = useState([])
+  const [diagnosesLoaded, setDiagnosesLoaded] = useState(false)
   const [infoError, setInfoError] = useState('')
   const sellerName = profile?.nickname || profile?.name || profile?.handle || currentUser.handle
 
@@ -122,6 +142,12 @@ export default function ResellCreatePage() {
     journeyCount: selectProductDetails.journeyCount ?? mockProduct.journeyCount,
     overallScore: selectProductDetails.score ?? mockProduct.overallScore,
   }
+  const diagnosis = diagnoses[0] ?? null
+  const defaultsNextTop = 399 + (
+    diagnosesLoaded && diagnoses.length > 0
+      ? diagnoses.length * 251
+      : 233
+  ) + 16
   const key = steps[step]
   const isContentEdit = Boolean(
     location.state?.resellEditReturn && ['letter', 'care', 'share'].includes(key),
@@ -130,6 +156,24 @@ export default function ResellCreatePage() {
   const fillPct = `${(stepOf6 / 6) * 100}%`
   const conditionLabel =
     CONDITIONS.find((c) => c.id === condition)?.label.replace(/급.*/, '급') ?? 'A급'
+
+  useEffect(() => {
+    let cancelled = false
+    getProductDiagnoses(product.id, { userId: sellerId })
+      .then((items) => {
+        if (!cancelled) setDiagnoses(Array.isArray(items) ? items : [])
+      })
+      .catch(() => {
+        if (!cancelled) setDiagnoses([])
+      })
+      .finally(() => {
+        if (!cancelled) setDiagnosesLoaded(true)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [product.id, sellerId])
 
   useEffect(() => {
     let cancelled = false
@@ -158,7 +202,7 @@ export default function ResellCreatePage() {
         })
         setOwnedProducts(nextProducts)
         setProductsError('')
-        if (nextProducts.length > 0 && !location.state?.resellProductId) {
+        if (nextProducts.length > 0 && !location.state?.resellProductId && !searchParams.get('productId')) {
           setProductId(nextProducts[0].productId)
         }
       })
@@ -172,7 +216,7 @@ export default function ResellCreatePage() {
     return () => {
       cancelled = true
     }
-  }, [location.state?.resellProductId, sellerId])
+  }, [location.state?.resellProductId, searchParams, sellerId])
 
   useEffect(() => {
     const resetScroll = () => {
@@ -205,7 +249,7 @@ export default function ResellCreatePage() {
     photoInputRef.current?.click()
   }
 
-  const uploadPhoto = (event) => {
+  const uploadPhoto = async (event) => {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file) return
@@ -215,6 +259,18 @@ export default function ResellCreatePage() {
     setPhotos((previous) =>
       previous.map((item, index) => (index === photoSlot ? photo : item)),
     )
+
+    setPhotoUploading(true)
+    try {
+      const uploadedUrl = await uploadResellPhoto(file)
+      setPhotoUrls((previous) => previous.map((item, index) => (
+        index === photoSlot ? uploadedUrl : item
+      )))
+    } catch (error) {
+      setInfoError(error?.message || '사진 업로드에 실패했습니다. 다시 시도해 주세요.')
+    } finally {
+      setPhotoUploading(false)
+    }
 
     // API 연동 전 임시 AI 판정: 이미지 용량을 기준으로 추천 상태를 생성합니다.
     if (file.size >= 5 * 1024 * 1024) setCondition('B')
@@ -246,6 +302,8 @@ export default function ResellCreatePage() {
         state: {
           resellLetter: letter,
           resellCareTip: careTip,
+          resellLetterShared: includeLetter,
+          resellCaretipShared: includeCare,
           resellShareSelections: shareSelections,
           resellSituationSelections: situationSelections,
         },
@@ -256,7 +314,8 @@ export default function ResellCreatePage() {
   }
   const nextFromInfo = () => {
     const numericPrice = Number(String(price).replace(/,/g, ''))
-    if (!photos.some(Boolean)) {
+    const uploadedPhotoUrls = photoUrls.filter(Boolean)
+    if (uploadedPhotoUrls.length === 0 || photoUploading) {
       setInfoError('실물 사진을 1장 이상 등록해 주세요.')
       return
     }
@@ -265,15 +324,38 @@ export default function ResellCreatePage() {
       return
     }
     setInfoError('')
+    const draft = {
+      productId,
+      sellerId,
+      photoUrls: uploadedPhotoUrls,
+      conditionGrade: condition,
+      price: numericPrice,
+      letterShared: includeLetter,
+      caretipShared: includeCare,
+    }
+    sessionStorage.setItem('resell-draft', JSON.stringify(draft))
+    next()
+  }
+  const nextFromOptional = () => {
+    let draft = {}
+    try {
+      draft = JSON.parse(sessionStorage.getItem('resell-draft') || '{}')
+    } catch {
+      draft = {}
+    }
+    sessionStorage.setItem(
+      'resell-draft',
+      JSON.stringify({ ...draft, letterShared: includeLetter, caretipShared: includeCare }),
+    )
     next()
   }
   const submitResell = async () => {
     if (isSubmitting) return
 
     const numericPrice = Number(String(price).replace(/,/g, ''))
-    const photoFiles = photos.filter(Boolean).map((photo) => photo.file)
+    const uploadedPhotoUrls = photoUrls.filter(Boolean)
 
-    if (photoFiles.length === 0 || !Number.isSafeInteger(numericPrice) || numericPrice <= 0) {
+    if (uploadedPhotoUrls.length === 0 || !Number.isSafeInteger(numericPrice) || numericPrice <= 0) {
       setSubmitError('사진을 1장 이상 등록하고 올바른 판매 가격을 입력해 주세요.')
       return
     }
@@ -282,7 +364,6 @@ export default function ResellCreatePage() {
     setSubmitError('')
 
     try {
-      const photoUrls = await Promise.all(photoFiles.map(uploadResellPhoto))
       await createResell({
         productId,
         sellerId,
@@ -290,9 +371,9 @@ export default function ResellCreatePage() {
         conditionGrade: condition,
         letterShared: includeLetter,
         caretipShared: includeCare,
-        photoUrls,
+        photoUrls: uploadedPhotoUrls,
       })
-      setStep(steps.indexOf('done'))
+      navigate('/resell', { replace: true })
     } catch (error) {
       setSubmitError(error?.message || '리셀글을 등록하지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
@@ -300,9 +381,58 @@ export default function ResellCreatePage() {
     }
   }
   const generateAiLetter = () => {
-    // 실제 AI API 연동 시 이 함수의 본문만 API 호출로 교체합니다.
-    setLetter(AI_LETTER.slice(0, 200))
-    setAiPromptOpen(false)
+    const transferId = location.state?.transferId
+    if (!transferId) {
+      setLetter(AI_LETTER.slice(0, 200))
+      setAiPromptOpen(false)
+      return
+    }
+
+    createLetterDraft(transferId, { userId: sellerId })
+      .then((response) => {
+        const draft = response?.draftText ?? response?.content ?? response?.text
+        setLetter(String(draft || AI_LETTER).slice(0, 200))
+        setAiPromptOpen(false)
+      })
+      .catch(() => {
+        // 리셀 생성 단계에는 전송 ID가 없거나 초안 API가 준비되지 않은 경우가 있어
+        // 사용자가 바로 수정할 수 있는 기본 초안을 제공합니다.
+        setLetter(AI_LETTER.slice(0, 200))
+        setAiPromptOpen(false)
+      })
+  }
+  const nextFromLetter = () => {
+    try {
+      const draft = JSON.parse(sessionStorage.getItem('resell-draft') || '{}')
+      sessionStorage.setItem('resell-draft', JSON.stringify({ ...draft, letter, letterShared: includeLetter }))
+    } catch {
+      // ignore storage errors; the React form state remains authoritative
+    }
+    next()
+  }
+  const nextFromCare = async () => {
+    if (careTipSubmitting) return
+    setCareTipError('')
+    setCareTipSubmitting(true)
+    try {
+      if (careTip.trim()) {
+        await createCareTip(productId, { authorId: sellerId, content: careTip.trim() })
+      }
+      try {
+        const draft = JSON.parse(sessionStorage.getItem('resell-draft') || '{}')
+        sessionStorage.setItem(
+          'resell-draft',
+          JSON.stringify({ ...draft, careTip, caretipShared: includeCare }),
+        )
+      } catch {
+        // ignore storage errors; the React form state remains authoritative
+      }
+      next()
+    } catch (error) {
+      setCareTipError(error?.message || '케어팁 저장에 실패했습니다. 다시 시도해 주세요.')
+    } finally {
+      setCareTipSubmitting(false)
+    }
   }
   const back = () => {
     if (step === 0) navigate('/resell')
@@ -357,10 +487,12 @@ export default function ResellCreatePage() {
                             : key === 'done'
                               ? ' page--resell-create-done'
               : ''
-        }${isContentEdit ? ' page--resell-content-edit' : ''}`}
+        }${!diagnosis && key === 'info' ? ' page--resell-info-no-diagnosis' : ''}${isContentEdit ? ' page--resell-content-edit' : ''}`}
         style={{
           '--share-expanded': shareSelections.length,
           '--confirm-reduction': `${(includeLetter ? 0 : 52) + (includeCare ? 0 : 199)}px`,
+          '--info-price-top': diagnosis ? '675px' : '567px',
+          height: key === 'defaults' ? `${defaultsNextTop + 85}px` : undefined,
         }}
       >
         {key === 'select' ? (
@@ -477,7 +609,11 @@ export default function ResellCreatePage() {
                 </p>
               </div>
             </div>
-            <button type="button" className="resell-next" onClick={next}>
+            <button
+              type="button"
+              className="resell-next"
+              onClick={next}
+            >
               확인하였습니다.
             </button>
           </>
@@ -544,7 +680,43 @@ export default function ResellCreatePage() {
                 상품 상태 <em>*</em>
               </p>
               <div className="resell-condition">
+                <div className={`resell-condition__diagnosis${diagnosis ? ' has-diagnosis' : ' is-empty'}`}>
+                  <p>⚡ 진단 날짜 2023.10</p>
+                  <p>⚡ 진단 결과 탈모 진행 초기 (M자형)</p>
+                  <p>⚡ 솔루션</p>
+                  <small>두피 스케일링 및 영양 앰플 집중 케어 권장.<br />스트레스 관리 및 충분한 수면 필요</small>
+                  <p className="resell-condition__diagnosis-note">※ 진단 이력이 없을 시 마이페이지 AI 상태 진단하러 가기</p>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/my/products/${product.id}/ai`, {
+                      state: {
+                        fromResell: true,
+                        resellStep: 'info',
+                        resellProductId: product.id,
+                      },
+                    })}
+                  >
+                    진단하러 가기
+                  </button>
+                </div>
                 <p className="resell-condition__ai">⚡ AI 상태 추천</p>
+                {!diagnosis ? (
+                  <div className="resell-condition__no-diagnosis">
+                    <p>진단 이력이 없습니다.</p>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/my/products/${product.id}/ai`, {
+                        state: {
+                          fromResell: true,
+                          resellStep: 'info',
+                          resellProductId: product.id,
+                        },
+                      })}
+                    >
+                      진단하러 가기
+                    </button>
+                  </div>
+                ) : null}
                 <div className="resell-condition__opts">
                   {CONDITIONS.map((c) => (
                     <button
@@ -601,8 +773,7 @@ export default function ResellCreatePage() {
                 <div className="resell-defaults-summary__facts">
                   {[
                     'MCM 정품 인증 완료',
-                    '3명의 주인 / 8개 도시 / 4년 여정',
-                    '전체 여정의 88% 검증 완료',
+                    '3명의 주인',
                   ].map((fact) => (
                     <p key={fact}>
                       <img src={checkCircleIcon} alt="" width={14} height={14} />
@@ -619,35 +790,45 @@ export default function ResellCreatePage() {
 
             <section className="resell-diagnosis">
               <h2>n대별 진단 이력</h2>
-              {['1st keeper', '2nd keeper'].map((keeper) => (
-                <article className="resell-diagnosis__card" key={keeper}>
-                  <span className="resell-diagnosis__keeper">{keeper}</span>
+              {diagnosesLoaded && diagnoses
+                .slice()
+                .sort((a, b) => Number(a.generation) - Number(b.generation)
+                  || String(a.diagnosed_at ?? a.diagnosedAt ?? '').localeCompare(String(b.diagnosed_at ?? b.diagnosedAt ?? '')))
+                .map((item) => (
+                <article className={`resell-diagnosis__card resell-diagnosis__card--grade-${Math.max(1, Math.min(5, Number(item.conditionGrade) || 1))}`} key={item.diagnosisId ?? `${item.generation}-${item.diagnosed_at ?? item.diagnosedAt}`}>
+                  <span className="resell-diagnosis__keeper">{keeperLabel(item.generation)}</span>
+                  {item.conditionGrade != null ? <span className="resell-diagnosis__grade">등급 {item.conditionGrade}/5</span> : null}
                   <dl>
                     <div>
                       <dt>진단 날짜</dt>
-                      <dd>2023. 10. 26</dd>
+                      <dd>{formatDiagnosisDate(item.diagnosed_at ?? item.diagnosedAt)}</dd>
                     </div>
                     <div>
                       <dt>진단 결과</dt>
-                      <dd>탈모 진행 초기 (M자형)</dd>
+                      <dd>{item.result_text ?? item.resultText ?? '-'}</dd>
                     </div>
                     <div className="resell-diagnosis__solution">
                       <dt>솔루션</dt>
                       <dd>
-                        두피 스케일링 및 영양 앰플 집중 케어 권장.<br />
-                        스트레스 관리 및 충분한 수면 필요
+                        {item.solution_text ?? item.solutionText ?? '-'}
                       </dd>
                     </div>
                   </dl>
                 </article>
               ))}
 
-              <article className="resell-diagnosis__empty">
-                <img src={documentAddIcon} alt="" width={48} height={48} />
-                <strong>진단 이력이 없을 경우</strong>
-                <p>없어도 계속 진행 가능합니다.</p>
+              {diagnosesLoaded && diagnoses.length === 0 ? <article className="resell-diagnosis__empty">
+                <strong>상품 상태 <em>*</em></strong>
+                <div className="resell-diagnosis__guide">
+                  <p><span aria-hidden="true">⚡</span> 진단 날짜 2023.10</p>
+                  <p><span aria-hidden="true">⚡</span> 진단 결과 탈모 진행 초기 (M자형)</p>
+                  <p><span aria-hidden="true">⚡</span> 솔루션</p>
+                  <small>두피 스케일링 및 영양 앰플 집중 케어 권장.<br />스트레스 관리 및 충분한 수면 필요</small>
+                  <p className="resell-diagnosis__guide-note">※ 진단 이력이 없을 시 마이페이지 AI 상태 진단하러 가기</p>
+                </div>
                 <button
                   type="button"
+                  className="resell-diagnosis__guide-action"
                   onClick={() =>
                     navigate(`/my/products/${product.id}/ai`, {
                       state: {
@@ -660,10 +841,15 @@ export default function ResellCreatePage() {
                 >
                   진단하러 가기
                 </button>
-              </article>
+              </article> : null}
             </section>
 
-            <button type="button" className="resell-next" onClick={next}>
+            <button
+              type="button"
+              className="resell-next"
+              style={{ top: `${defaultsNextTop}px`, bottom: 'auto' }}
+              onClick={next}
+            >
               다음
             </button>
           </>
@@ -697,7 +883,7 @@ export default function ResellCreatePage() {
             </p>
 
             <div className="resell-journey-opts">
-              {SHARE_JOURNEYS.map((journey, index) => {
+              {SHARE_JOURNEYS.slice(0, 1).map((journey, index) => {
                 const on = shareSelections.includes(index)
                 return (
                   <div
@@ -729,25 +915,35 @@ export default function ResellCreatePage() {
                     </button>
                     {on ? (
                       <div className="resell-journey-opt__situations">
-                        <span>상황</span>
-                        {journey.situations.map((situation) => {
-                          const selectionKey = `${index}-${situation}`
+                        {['상황', '활동', '스타일'].map((category, categoryIndex) => {
+                          const categoryItems =
+                            index === 0
+                              ? ['여러 사람들이 볼 수 있습니다. 동의하십니까?']
+                              : journey.situations.filter((_, itemIndex) => itemIndex === categoryIndex)
                           return (
-                          <label key={situation}>
-                            <input
-                              type="checkbox"
-                              checked={situationSelections.includes(selectionKey)}
-                              onChange={(event) =>
-                                setSituationSelections((previous) =>
-                                  event.target.checked
-                                    ? [...previous, selectionKey]
-                                    : previous.filter((item) => item !== selectionKey),
+                            <div className="resell-journey-opt__category" key={category}>
+                              <span>{category}</span>
+                              {categoryItems.map((item) => {
+                                const selectionKey = `${index}-${categoryIndex}-${item}`
+                                return (
+                                  <label key={item}>
+                                    <input
+                                      type="checkbox"
+                                      checked={situationSelections.includes(selectionKey)}
+                                      onChange={(event) =>
+                                        setSituationSelections((previous) =>
+                                          event.target.checked
+                                            ? [...previous, selectionKey]
+                                            : previous.filter((value) => value !== selectionKey),
+                                        )
+                                      }
+                                    />
+                                    <i aria-hidden />
+                                    <span>{item}</span>
+                                  </label>
                                 )
-                              }
-                            />
-                            <i aria-hidden />
-                            {situation}
-                          </label>
+                              })}
+                            </div>
                           )
                         })}
                       </div>
@@ -758,11 +954,10 @@ export default function ResellCreatePage() {
                   </div>
                 )
               })}
+              <button type="button" className="resell-next" onClick={next}>
+                {isContentEdit ? '수정하기' : '다음'}
+              </button>
             </div>
-
-            <button type="button" className="resell-next" onClick={next}>
-              {isContentEdit ? '수정하기' : '다음'}
-            </button>
           </>
         ) : null}
 
@@ -808,7 +1003,7 @@ export default function ResellCreatePage() {
               </div>
             </button>
 
-            <button type="button" className="resell-next" onClick={next}>
+            <button type="button" className="resell-next" onClick={nextFromOptional}>
               다음
             </button>
           </>
@@ -866,7 +1061,7 @@ export default function ResellCreatePage() {
               </button>
             </div>
 
-            <button type="button" className="resell-next" onClick={next}>
+            <button type="button" className="resell-next" onClick={nextFromLetter}>
               {isContentEdit ? '수정하기' : '다음'}
             </button>
           </>
@@ -896,8 +1091,10 @@ export default function ResellCreatePage() {
               {careTip.length}/200
             </p>
 
-            <button type="button" className="resell-next" onClick={next}>
-              {isContentEdit ? '수정하기' : '다음'}
+            {careTipError ? <p className="form-error" role="alert">{careTipError}</p> : null}
+
+            <button type="button" className="resell-next" onClick={nextFromCare} disabled={careTipSubmitting}>
+              {careTipSubmitting ? '저장 중...' : isContentEdit ? '수정하기' : '다음'}
             </button>
           </>
         ) : null}
@@ -940,10 +1137,10 @@ export default function ResellCreatePage() {
               <div className="resell-preview__photos">
                 {[0, 1, 2].map((i) => (
                   <div key={i} className="resell-preview__photo">
-                    {photos[i] ? (
+                    {(photoUrls[i] || photos[i]?.url) ? (
                       <img
                         className="resell-preview__uploaded-photo"
-                        src={photos[i].url}
+                        src={photoUrls[i] || photos[i].url}
                         alt={`업로드한 상품 사진 ${i + 1}`}
                         width={93}
                         height={89}
@@ -963,7 +1160,7 @@ export default function ResellCreatePage() {
 
               <div className="resell-preview__price-row">
                 <p className="resell-preview__price">
-                  {price ? `${Number(price.replace(/,/g, '')).toLocaleString()}원` : '150,000원'}
+                  {price ? `${Number(price.replace(/,/g, '')).toLocaleString()}원` : '-'}
                 </p>
                 <span className="resell-preview__badge">상태 {conditionLabel}</span>
               </div>
