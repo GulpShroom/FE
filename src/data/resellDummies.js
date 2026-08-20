@@ -1,0 +1,32 @@
+export const resellProductDummies = [
+  {
+    id: 'resell-product-1',
+    productId: 'p1',
+    title: 'MCM Stark Backpack',
+    alias: '출근백',
+    journeyCount: 12,
+    score: 87,
+    previousOwnerCount: 1,
+    mine: true,
+  },
+  {
+    id: 'resell-product-2',
+    productId: 'p2',
+    title: 'MCM Aren Shopper',
+    alias: '주말백',
+    journeyCount: 8,
+    score: 91,
+    previousOwnerCount: 1,
+    mine: true,
+  },
+  {
+    id: 'resell-product-3',
+    productId: 'p3',
+    title: 'MCM Soft Berlin',
+    alias: '데일리백',
+    journeyCount: 5,
+    score: 95,
+    previousOwnerCount: 1,
+    mine: true,
+  },
+]

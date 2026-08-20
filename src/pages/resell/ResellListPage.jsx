@@ -1,10 +1,13 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { AppShell } from '../../components/AppShell'
 import { Modal } from '../../components/Modal'
-import { products, resellPosts } from '../../data/mock'
-
-const TONES = ['감성적', '담백하게', '발랄하게']
+import { useResellList } from '../../hooks/useResellList'
+import fabRing from '../../assets/final/resell-fab-main.svg'
+import fabVertical from '../../assets/final/resell-fab-detail-a.svg'
+import fabHorizontal from '../../assets/final/resell-fab-detail-b.svg'
+import resellLogo from '../../assets/final/resell-logo.png'
+import deleteModalLogo from '../../assets/final/resell-delete-logo.png'
 
 export default function ResellListPage() {
   const navigate = useNavigate()
@@ -13,21 +16,35 @@ export default function ResellListPage() {
   const [localManaging, setLocalManaging] = useState(false)
   const managing = manageFromUrl || localManaging
   const [scope, setScope] = useState(manageFromUrl ? 'mine' : 'all')
-  const [tone, setTone] = useState('감성적')
   const [deleteId, setDeleteId] = useState(null)
-  const [posts, setPosts] = useState(resellPosts)
   const [manageIndex, setManageIndex] = useState(0)
+  const [completedNotice, setCompletedNotice] = useState(false)
+  const completedNoticeTimer = useRef(null)
+  const isMineScope = scope === 'mine' || managing
+  const { data, isLoading, error, refetch } = useResellList(
+    isMineScope
+      ? { userId: 1, role: 'seller', page: 0, size: 10 }
+      : { status: 'active', page: 0, size: 10 },
+  )
+  const list = data.resells
 
-  const list = useMemo(() => {
-    return posts.filter((post) => {
-      if ((scope === 'mine' || managing) && !post.mine) return false
-      return true
-    })
-  }, [posts, scope, managing])
+  useEffect(
+    () => () => {
+      if (completedNoticeTimer.current) window.clearTimeout(completedNoticeTimer.current)
+    },
+    [],
+  )
+
+  const showCompletedNotice = () => {
+    setCompletedNotice(true)
+    if (completedNoticeTimer.current) window.clearTimeout(completedNoticeTimer.current)
+    completedNoticeTimer.current = window.setTimeout(() => {
+      setCompletedNotice(false)
+      completedNoticeTimer.current = null
+    }, 3000)
+  }
 
   const managePost = list[manageIndex] ?? list[0]
-  const manageProduct =
-    products.find((p) => p.id === managePost?.productId) ?? products[0]
 
   if (managing) {
     return (
@@ -40,60 +57,62 @@ export default function ResellListPage() {
           navigate('/resell', { replace: true })
         }}
       >
-        <div className="page page--resell-manage form-stack">
+        <div
+          className={`page page--resell-manage form-stack${list.length === 0 ? ' page--resell-manage-empty' : ''}`}
+        >
           <h1 className="resell-create__title">내 리셀글 관리</h1>
 
-          {list.length === 0 ? (
-            <div className="resell-empty resell-empty--manage">
-              <p className="resell-empty__title">내 리셀글이 없습니다.</p>
+          {isLoading ? (
+            <div className="resell-empty" role="status">
+              <p className="resell-empty__title">리셀글을 불러오는 중입니다.</p>
             </div>
+          ) : error ? (
+            <div className="resell-empty" role="alert">
+              <p className="resell-empty__title">리셀글을 불러오지 못했습니다.</p>
+              <button type="button" className="resell-head__manage" onClick={refetch}>
+                다시 시도
+              </button>
+            </div>
+          ) : list.length === 0 ? (
+            <div className="resell-empty resell-empty--manage" aria-label="등록된 리셀 제품 없음" />
           ) : (
             <>
               <button
+                key={managePost.resellId}
                 type="button"
                 className="resell-overview"
-                onClick={() => navigate(`/resell/${managePost.id}`)}
+                onClick={() => setManageIndex((current) => (current + 1) % list.length)}
+                aria-label="다음 리셀 제품 보기"
               >
                 <div className="resell-overview__inner">
                   <p className="resell-overview__eyebrow">Journey Overview</p>
                   <p className="resell-overview__alias">
-                    {manageProduct?.alias ?? managePost.title}
+                    {managePost.nickname}
                   </p>
                   <div className="resell-overview__meta">
-                    <span>정품 인증 완료</span>
-                    <span>{manageProduct?.journeyCount ?? 0}개의 여정 기록</span>
+                    <span>{managePost.postStatus}</span>
+                    <span>상태 {managePost.conditionGrade}</span>
                   </div>
-                  {manageProduct?.stamp ? (
-                    <img
-                      className="resell-overview__stamp"
-                      src={manageProduct.stamp}
-                      alt=""
-                      width={160}
-                      height={160}
-                    />
-                  ) : null}
                   <p className="resell-overview__score">
-                    {manageProduct?.careScore ?? 87}
+                    {managePost.provenanceScore}
                   </p>
                 </div>
               </button>
 
-              <div className="passport-rail" aria-label="내 리셀글">
-                {list.map((p, i) =>
-                  i === manageIndex ? (
+              <div className="passport-rail" aria-label="리셀글 선택">
+                {list.map((post, index) =>
+                  index === manageIndex ? (
                     <span
-                      key={p.id}
+                      key={post.resellId}
                       className="passport-rail__pill"
-                      style={{ background: 'var(--mc-green)' }}
                     />
                   ) : (
                     <button
-                      key={p.id}
+                      key={post.resellId}
                       type="button"
                       className="passport-rail__dot"
-                      style={{ background: 'var(--mc-green)', border: 0, padding: 0 }}
-                      onClick={() => setManageIndex(i)}
-                      aria-label={p.title}
+                      onClick={() => setManageIndex(index)}
+                      aria-label={`${index + 1}번째 리셀글`}
                     />
                   ),
                 )}
@@ -103,14 +122,14 @@ export default function ResellListPage() {
                 <button
                   type="button"
                   className="resell-dual__btn"
-                  onClick={() => setDeleteId(managePost.id)}
+                  onClick={() => setDeleteId(managePost.resellId)}
                 >
                   삭제하기
                 </button>
                 <button
                   type="button"
                   className="resell-dual__btn"
-                  onClick={() => navigate(`/resell/${managePost.id}`)}
+                  onClick={() => navigate(`/resell/${managePost.resellId}/edit`)}
                 >
                   수정하기
                 </button>
@@ -123,23 +142,56 @@ export default function ResellListPage() {
           open={Boolean(deleteId)}
           title="이 리셀글을 삭제하시겠습니까?"
           primaryLabel="삭제하기"
+          secondaryLabel="취소하기"
+          variant="resell-delete"
+          logoSrc={deleteModalLogo}
           danger
           onPrimary={() => {
-            setPosts((prev) => prev.filter((p) => p.id !== deleteId))
             setManageIndex(0)
             setDeleteId(null)
+            refetch()
           }}
           onSecondary={() => setDeleteId(null)}
           onClose={() => setDeleteId(null)}
         >
           <p>삭제된 리셀글은 복구할 수 없습니다.</p>
         </Modal>
+
+        <Modal
+          open={!isLoading && !error && list.length === 0}
+          primaryLabel="확인"
+          hideSecondary
+          variant="resell-empty-notice"
+          onPrimary={() => {
+            setLocalManaging(false)
+            setScope('all')
+            navigate('/resell', { replace: true })
+          }}
+        >
+          <p>내 리셀글이 없습니다.</p>
+        </Modal>
       </AppShell>
     )
   }
 
   return (
-    <AppShell showTagline>
+    <AppShell
+      logoSrc={resellLogo}
+      logoWidth={317}
+      logoHeight={172}
+      floatingAction={
+        <button
+          type="button"
+          className="resell-fab"
+          aria-label="리셀 등록"
+          onClick={() => navigate('/resell/new')}
+        >
+          <img className="resell-fab__ring" src={fabRing} alt="" width={41} height={41} />
+          <img className="resell-fab__vertical" src={fabVertical} alt="" width={2} height={17} />
+          <img className="resell-fab__horizontal" src={fabHorizontal} alt="" width={17} height={2} />
+        </button>
+      }
+    >
       <div className="page page--resell">
         <div className="resell-head">
           <h1 className="resell-head__title">Resell</h1>
@@ -173,80 +225,65 @@ export default function ResellListPage() {
           </button>
         </div>
 
-        <div className="resell-tones">
-          {TONES.map((t) => (
-            <button
-              key={t}
-              type="button"
-              className={`resell-tone${tone === t ? ' is-active' : ''}`}
-              onClick={() => setTone(t)}
-            >
-              {t}
+        {isLoading ? (
+          <div className="resell-empty" role="status">
+            <p className="resell-empty__title">리셀글을 불러오는 중입니다.</p>
+          </div>
+        ) : error ? (
+          <div className="resell-empty" role="alert">
+            <p className="resell-empty__title">리셀글을 불러오지 못했습니다.</p>
+            <p className="resell-empty__desc">잠시 후 다시 시도해 주세요.</p>
+            <button type="button" className="resell-head__manage" onClick={refetch}>
+              다시 시도
             </button>
-          ))}
-        </div>
-
-        {list.length === 0 ? (
+          </div>
+        ) : list.length === 0 ? (
           <div className="resell-empty">
-            <p className="resell-empty__title">내 리셀글이 없습니다.</p>
+            <p className="resell-empty__title">리셀글이 없습니다.</p>
             <p className="resell-empty__desc">보유 제품으로 리셀글을 등록해 보세요.</p>
           </div>
         ) : (
           <div className="resell-list">
-            {list.map((post) => (
-              <article key={post.id} className="resell-card">
-                <Link to={`/resell/${post.id}`} className="resell-card__link">
-                  <div className="resell-card__thumb">
-                    <img src={post.image} alt="" width={56} height={56} />
-                  </div>
+            {data.resells.map((post) => (
+              <article
+                key={post.resellId}
+                className="resell-card"
+                data-provenance-score={post.provenanceScore}
+                data-condition-grade={post.conditionGrade}
+              >
+                <Link
+                  to={`/resell/${post.resellId}`}
+                  state={scope === 'mine' ? { resellHistoryRole: 'author' } : undefined}
+                  className="resell-card__link"
+                  onClick={(event) => {
+                    if (post.postStatus === 'active') return
+                    event.preventDefault()
+                    showCompletedNotice()
+                  }}
+                >
+                  <div className="resell-card__thumb" aria-hidden="true" />
                   <div className="resell-card__copy">
-                    <h3 className="resell-card__title">
-                      {post.title.replace('\n', ' ')}
-                    </h3>
-                    <p className="resell-card__price">{post.price}</p>
+                    <h3 className="resell-card__title">{post.nickname}</h3>
+                    <p className="resell-card__price">
+                      {post.price.toLocaleString('ko-KR')}원
+                    </p>
                   </div>
                 </Link>
-                <div className="resell-card__meta">
-                  <span className="resell-card__status">{post.status}</span>
-                  {post.mine ? (
-                    <button
-                      type="button"
-                      className="resell-card__delete"
-                      onClick={() => setDeleteId(post.id)}
-                    >
-                      삭제
-                    </button>
-                  ) : null}
-                </div>
+                <span className="resell-card__status">
+                  {post.postStatus}
+                </span>
               </article>
             ))}
           </div>
         )}
 
-        <button
-          type="button"
-          className="resell-fab"
-          aria-label="리셀 등록"
-          onClick={() => navigate('/resell/new')}
-        >
-          +
-        </button>
       </div>
 
-      <Modal
-        open={Boolean(deleteId)}
-        title="이 리셀글을 삭제하시겠습니까?"
-        primaryLabel="삭제하기"
-        danger
-        onPrimary={() => {
-          setPosts((prev) => prev.filter((p) => p.id !== deleteId))
-          setDeleteId(null)
-        }}
-        onSecondary={() => setDeleteId(null)}
-        onClose={() => setDeleteId(null)}
-      >
-        <p>삭제된 리셀글은 복구할 수 없습니다.</p>
-      </Modal>
+      {completedNotice ? (
+        <div className="resell-completed-toast" role="status" aria-live="polite">
+          이미 거래된 상품입니다!
+        </div>
+      ) : null}
     </AppShell>
   )
 }
