@@ -76,6 +76,7 @@ export type ResellRole = 'seller' | 'buyer'
 export interface ResellListParams {
   status?: string
   userId?: number
+  sellerId?: number
   role?: ResellRole
   page?: number
   size?: number
@@ -108,6 +109,7 @@ export async function getResellList(
   {
     status,
     userId,
+    sellerId,
     role,
     page = DEFAULT_PAGE,
     size = DEFAULT_SIZE,
@@ -118,7 +120,7 @@ export async function getResellList(
     throw new Error('role을 지정할 때는 userId가 필요합니다.')
   }
 
-  return api.get<
+  const response = await api.get<
     ApiResponseResellListResponse,
     ResellListResponse
   >(RESELLS_ENDPOINT, {
@@ -126,11 +128,20 @@ export async function getResellList(
     params: {
       ...(status ? { status } : {}),
       ...(userId != null ? { userId } : {}),
+      ...(sellerId != null ? { sellerId } : {}),
       ...(role ? { role } : {}),
       page,
       size,
     },
   })
+
+  const rows = Array.isArray(response)
+    ? response
+    : response?.resells ?? response?.posts ?? response?.content ?? []
+  return {
+    totalCount: response?.totalCount ?? rows.length,
+    resells: rows,
+  }
 }
 
 /** 전체 리셀글 목록 조회 */

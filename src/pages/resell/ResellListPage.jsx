@@ -3,6 +3,8 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { AppShell } from '../../components/AppShell'
 import { Modal } from '../../components/Modal'
 import { useResellList } from '../../hooks/useResellList'
+import { getResellDetail } from '../../api/resells'
+import { useProfile } from '../../context/ProfileContext'
 import fabRing from '../../assets/final/resell-fab-main.svg'
 import fabVertical from '../../assets/final/resell-fab-detail-a.svg'
 import fabHorizontal from '../../assets/final/resell-fab-detail-b.svg'
@@ -19,12 +21,16 @@ export default function ResellListPage() {
   const [deleteId, setDeleteId] = useState(null)
   const [manageIndex, setManageIndex] = useState(0)
   const [completedNotice, setCompletedNotice] = useState(false)
+  const [manageDetail, setManageDetail] = useState(null)
   const completedNoticeTimer = useRef(null)
+  const { profile } = useProfile()
+  const currentUserId = profile?.userId ?? profile?.id
   const isMineScope = scope === 'mine' || managing
   const { data, isLoading, error, refetch } = useResellList(
     isMineScope
-      ? { userId: 1, role: 'seller', page: 0, size: 10 }
+      ? { userId: currentUserId, sellerId: currentUserId, role: 'seller', page: 0, size: 10 }
       : { status: 'active', page: 0, size: 10 },
+    { enabled: !isMineScope || currentUserId != null },
   )
   const list = data.resells
 
@@ -45,6 +51,27 @@ export default function ResellListPage() {
   }
 
   const managePost = list[manageIndex] ?? list[0]
+
+  useEffect(() => {
+    if (!managing || !managePost?.resellId) {
+      setManageDetail(null)
+      return undefined
+    }
+    let cancelled = false
+    setManageDetail(null)
+    getResellDetail(managePost.resellId, { userId: currentUserId })
+      .then((detail) => {
+        if (!cancelled) setManageDetail(detail)
+      })
+      .catch(() => {
+        if (!cancelled) setManageDetail(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [currentUserId, managePost?.resellId, managing])
+
+  const managedProduct = manageDetail ?? managePost
 
   if (managing) {
     return (
@@ -87,14 +114,14 @@ export default function ResellListPage() {
                 <div className="resell-overview__inner">
                   <p className="resell-overview__eyebrow">Journey Overview</p>
                   <p className="resell-overview__alias">
-                    {managePost.nickname}
+                    {managedProduct?.officialName ?? managedProduct?.productName ?? managedProduct?.nickname ?? '제품'}
                   </p>
                   <div className="resell-overview__meta">
-                    <span>{managePost.postStatus}</span>
-                    <span>상태 {managePost.conditionGrade}</span>
+                    <span>{managedProduct?.postStatus ?? 'active'}</span>
+                    <span>상태 {managedProduct?.conditionGrade ?? '-'}</span>
                   </div>
                   <p className="resell-overview__score">
-                    {managePost.provenanceScore}
+                    {managedProduct?.summary?.provenanceScore ?? managedProduct?.provenanceScore ?? '-'}
                   </p>
                 </div>
               </button>
