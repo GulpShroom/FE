@@ -154,3 +154,11 @@ export function ownershipBadge(status) {
   if (status === 'linked') return '이어짐'
   return '소유중'
 }
+
+/** PATCH /products/{productId}/nickname — 별칭(닉네임) 수정 */
+export function updateProductNickname(productId, { userId, nickname }) {
+  return api.patch(`/products/${toApiId(productId)}/nickname`, {
+    userId: toApiId(userId),
+    nickname,
+  })
+}

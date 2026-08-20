@@ -345,6 +345,15 @@ export function applyAnalyzeToForm(form, data) {
   return next
 }
 
+/** analyze 응답에 EXIF 기반 시점/지역이 포함됐는지 판별 */
+export function hasExifFromAnalyze(data) {
+  if (!data) return false
+  if (data.exifTakenAt) return true
+  if (data.latitude != null && data.longitude != null) return true
+  if (data.verifyStatus === 'verified' && (data.year != null || data.country)) return true
+  return false
+}
+
 export function cacheProductJourneys(productId, journeys) {
   sessionStorage.setItem(CACHE_KEY, JSON.stringify({ productId, journeys }))
 }

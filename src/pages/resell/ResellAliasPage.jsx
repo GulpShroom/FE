@@ -1,23 +1,49 @@
 import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { AppShell } from '../../components/AppShell'
 import { Modal } from '../../components/Modal'
-import { products, resellPosts } from '../../data/mock'
+import { updateProductNickname } from '../../api/products'
+import { useProfile } from '../../context/ProfileContext'
 import resellModalLogo from '../../assets/final/resell-delete-logo.png'
 
 export default function ResellAliasPage() {
-  const { id } = useParams()
   const navigate = useNavigate()
-  const post = resellPosts.find((item) => item.id === id) ?? resellPosts[0]
-  const product = products.find((item) => item.id === post.productId) ?? products[0]
+  const location = useLocation()
+  const { profile } = useProfile()
+  const userId = Number(profile.userId ?? profile.id)
+  const productId = location.state?.productId
+  const officialName = location.state?.officialName || '계승 제품'
+  const image = location.state?.image || ''
+
   const [alias, setAlias] = useState('')
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
 
-  const submit = () => {
-    if (!alias.trim()) return
-    // TODO: 구매 계승 별칭 등록 API에 { resellId: id, productId: product.id, alias }를 전달합니다.
-    console.info('resell alias payload', { resellId: id, productId: product.id, alias: alias.trim() })
-    setConfirmOpen(true)
+  const submit = async () => {
+    if (!alias.trim() || saving) return
+    if (!productId) {
+      setError('제품 정보가 없습니다.')
+      return
+    }
+    if (!Number.isFinite(userId) || userId <= 0) {
+      setError('프로필을 선택한 뒤 등록해 주세요.')
+      return
+    }
+
+    setSaving(true)
+    setError(null)
+    try {
+      await updateProductNickname(productId, {
+        userId,
+        nickname: alias.trim(),
+      })
+      setConfirmOpen(true)
+    } catch (err) {
+      setError(err?.message || '별칭 등록에 실패했습니다.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -31,14 +57,16 @@ export default function ResellAliasPage() {
         </p>
 
         <section className="resell-alias-product">
-          <img src={product.image} alt={product.name} width={64} height={64} />
+          {image ? <img src={image} alt={officialName} width={64} height={64} /> : null}
           <div>
             <span>등록 대상 제품</span>
-            <strong>{product.name}</strong>
+            <strong>{officialName}</strong>
           </div>
         </section>
 
-        <label className="resell-alias-page__label" htmlFor="resell-alias">별칭 입력</label>
+        <label className="resell-alias-page__label" htmlFor="resell-alias">
+          별칭 입력
+        </label>
         <input
           id="resell-alias"
           value={alias}
@@ -57,30 +85,35 @@ export default function ResellAliasPage() {
           </p>
         </div>
 
+        {error ? (
+          <p role="alert" className="resell-empty__desc">
+            {error}
+          </p>
+        ) : null}
+
         <button
           type="button"
           className="resell-alias-page__submit"
-          disabled={!alias.trim()}
+          disabled={!alias.trim() || saving}
           onClick={submit}
         >
-          별칭 등록하기
+          {saving ? '등록 중...' : '별칭 등록하기'}
         </button>
       </main>
 
       <Modal
         open={confirmOpen}
-        secondaryLabel="네"
-        primaryLabel="아니요"
+        primaryLabel="확인"
+        hideSecondary
         variant="resell-buy"
         logoSrc={resellModalLogo}
-        onSecondary={() => navigate('/resell')}
-        onPrimary={() => setConfirmOpen(false)}
-        onClose={() => setConfirmOpen(false)}
+        onPrimary={() => navigate('/resell')}
+        onClose={() => navigate('/resell')}
       >
         <p>
-          구매하면 소유권이 이전되고
+          별칭이 등록되었습니다.
           <br />
-          봉인된 편지가 열립니다. 진행할까요?
+          리셀 목록으로 이동합니다.
         </p>
       </Modal>
     </AppShell>
