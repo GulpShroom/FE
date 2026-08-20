@@ -17,6 +17,7 @@ import ResellEditPage from './pages/resell/ResellEditPage'
 import ResellJourneyPreviewPage from './pages/resell/ResellJourneyPreviewPage'
 import ResellPassportPage from './pages/resell/ResellPassportPage'
 import ResellAliasPage from './pages/resell/ResellAliasPage'
+import LandingPage from './pages/landing/LandingPage'
 
 export default function App() {
   return (
@@ -24,7 +25,8 @@ export default function App() {
       <ProfileProvider>
         <div className="app-root">
           <Routes>
-            <Route path="/" element={<MainPage />} />
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/main" element={<MainPage />} />
             <Route path="/journey" element={<JourneyPassportsPage />} />
             <Route path="/journey/records/:productId" element={<JourneyListPage />} />
             <Route path="/journey/new" element={<JourneyFormPage />} />
