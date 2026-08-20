@@ -1,5 +1,5 @@
 import { getMyProducts } from './dashboard'
-import { getCareTips, mapCareTip, pickPreferredCareTip } from './my'
+import { getCareTips, mapCareTip, pickPassportCareTip } from './my'
 import { getGenerationLetter } from './products'
 import { isNotFoundError } from './client'
 
@@ -40,7 +40,7 @@ export async function loadResellSharedContents({
     try {
       const careData = await getCareTips(productId)
       const tips = (careData?.careTips ?? []).map(mapCareTip)
-      result.careTip = pickPreferredCareTip(tips, generationKey)?.content || ''
+      result.careTip = pickPassportCareTip(tips, generationKey)?.content || ''
     } catch {
       // care tip 조회 실패는 화면을 막지 않음
     }

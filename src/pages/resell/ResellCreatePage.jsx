@@ -14,6 +14,7 @@ import previewChevronIcon from '../../assets/final/resell-preview-chevron.svg'
 import resellModalLogo from '../../assets/final/resell-delete-logo.png'
 import { resellProductDummies } from '../../data/resellDummies'
 import { createResell, uploadResellPhoto } from '../../api/resells'
+import { saveResellLetterDraft } from '../../api/resellLetterDraft'
 import { getMyProducts, getProductSummary } from '../../api/dashboard'
 import { getProductJourneys, mapProductJourney } from '../../api/journeys'
 import { useProfile } from '../../context/ProfileContext'
@@ -407,7 +408,7 @@ export default function ResellCreatePage() {
     setSubmitError('')
 
     try {
-      await createResell({
+      const created = await createResell({
         productId,
         sellerId,
         price: numericPrice,
@@ -415,7 +416,11 @@ export default function ResellCreatePage() {
         letterShared: includeLetter,
         caretipShared: includeCare,
         photoUrls: uploadedPhotoUrls,
+        ...(includeLetter && letter.trim() ? { letterContent: letter.trim() } : {}),
       })
+      if (includeLetter && letter.trim() && created?.resellId != null) {
+        saveResellLetterDraft(created.resellId, letter.trim())
+      }
       navigate('/resell', { replace: true })
     } catch (error) {
       setSubmitError(error?.message || '리셀글을 등록하지 못했습니다. 잠시 후 다시 시도해 주세요.')

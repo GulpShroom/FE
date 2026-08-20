@@ -63,6 +63,33 @@ export function pickPreferredCareTip(tips, generation) {
 }
 
 /**
+ * 패스포트 뒷면용: 현재 세대 팁 → 직전 세대(계승/리셀) 팁 → 그 외 최신 팁
+ */
+export function pickPassportCareTip(tips, generation) {
+  const rows = Array.isArray(tips) ? tips : []
+  if (!rows.length) return null
+
+  const latestOf = (list) =>
+    list.reduce(
+      (best, tip) => (Number(tip?.careTipId) > Number(best?.careTipId) ? tip : best),
+      list[0],
+    )
+
+  const gen = generation != null && generation !== '' ? Number(generation) : NaN
+  if (Number.isFinite(gen) && gen > 0) {
+    const current = rows.filter((tip) => Number(tip.generation) === gen)
+    if (current.length) return latestOf(current)
+
+    if (gen > 1) {
+      const previous = rows.filter((tip) => Number(tip.generation) === gen - 1)
+      if (previous.length) return latestOf(previous)
+    }
+  }
+
+  return latestOf(rows)
+}
+
+/**
  * POST /products/{productId}/diagnosis
  * OpenAPI: photos = multipart, userId = query
  */

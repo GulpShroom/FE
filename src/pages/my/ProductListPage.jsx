@@ -3,7 +3,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { AppShell } from '../../components/AppShell'
 import { EmptyProductState } from '../../components/EmptyProductState'
 import { useProfile } from '../../context/ProfileContext'
-import { createCareTip, cacheLocalCareTip, getCareTips, getLocalCareTips, mapCareTip, pickPreferredCareTip } from '../../api/my'
+import { isNotFoundError } from '../../api/client'
+import { createCareTip, cacheLocalCareTip, getCareTips, getLocalCareTips, mapCareTip, pickPassportCareTip, pickPreferredCareTip } from '../../api/my'
 import {
   buildKeeperGenerations,
   getDigitalPassport,
@@ -60,6 +61,73 @@ function hasProvenanceScore(summary) {
   return summary?.provenanceScore != null && Number.isFinite(Number(summary.provenanceScore))
 }
 
+/** 동일 productId가 owning/transferred로 중복될 때 소유중을 우선 */
+function ownershipRank(status) {
+  if (status === 'owning') return 0
+  if (status === 'linked') return 1
+  return 2
+}
+
+function preferOwningProduct(matches) {
+  if (!matches?.length) return null
+  return [...matches].sort(
+    (a, b) => ownershipRank(a.ownershipStatus) - ownershipRank(b.ownershipStatus),
+  )[0]
+}
+
+function dedupeProductsPreferOwning(rows) {
+  const byId = new Map()
+  for (const item of rows) {
+    const key = String(item.id)
+    const prev = byId.get(key)
+    if (!prev || ownershipRank(item.ownershipStatus) < ownershipRank(prev.ownershipStatus)) {
+      byId.set(key, item)
+    }
+  }
+  return [...byId.values()]
+}
+
+function letterFromInheritance(inheritanceLetter) {
+  if (!inheritanceLetter?.content) return null
+  return {
+    content: inheritanceLetter.content,
+    fromKeeperLabel: inheritanceLetter.fromKeeperLabel,
+    letterId: inheritanceLetter.letterId,
+    openedAt: inheritanceLetter.openedAt,
+  }
+}
+
+/** 계승(리셀 구매) 후 패스포트 뒷면에 보여줄 편지 세대 후보 */
+function letterGenerationCandidates(gens, currentGeneration) {
+  const current = Number(currentGeneration)
+  const openedDesc = [...(gens ?? [])]
+    .filter((g) => g.hasOpenedLetter && g.generation != null)
+    .sort((a, b) => Number(b.generation) - Number(a.generation))
+    .map((g) => Number(g.generation))
+
+  return [
+    Number.isFinite(current) && current > 1 ? current - 1 : null,
+    ...openedDesc,
+  ].filter((value, index, arr) => value != null && value > 0 && arr.indexOf(value) === index)
+}
+
+async function resolvePassportLetter({ productId, inheritanceLetter, gens, currentGeneration }) {
+  const inherited = letterFromInheritance(inheritanceLetter)
+  if (inherited) return inherited
+
+  for (const gen of letterGenerationCandidates(gens, currentGeneration)) {
+    try {
+      const letterData = await getGenerationLetter(productId, gen)
+      const mapped = mapGenerationLetter(letterData)
+      if (mapped.content?.trim()) return mapped
+    } catch (error) {
+      if (!isNotFoundError(error)) break
+    }
+  }
+
+  return null
+}
+
 export default function ProductListPage() {
   const navigate = useNavigate()
   const { profile } = useProfile()
@@ -89,24 +157,25 @@ export default function ProductListPage() {
   const featured = useMemo(() => {
     if (!catalog.length) return null
     if (selectedId != null) {
-      const selected = catalog.find((p) => String(p.id) === String(selectedId))
+      const matches = catalog.filter((p) => String(p.id) === String(selectedId))
+      const selected = preferOwningProduct(matches)
       if (selected) return selected
     }
     return catalog.find((p) => p.ownershipStatus === 'owning') ?? catalog[0] ?? null
   }, [catalog, selectedId])
   const detailKey = featured ? `detail:${featured.id}` : null
-  const canWriteCareTip = featured?.ownershipStatus === 'owning'
+  const canEditCareTip = Boolean(featured)
 
   useEffect(() => {
-    if (!canWriteCareTip && careEditing) setCareEditing(false)
-  }, [canWriteCareTip, careEditing])
+    if (!featured && careEditing) setCareEditing(false)
+  }, [featured, careEditing])
 
   useEffect(() => {
     let cancelled = false
     getUserProducts(profile.id, { status: 'all' })
       .then((data) => {
         if (cancelled) return
-        const rows = (data?.products ?? []).map(mapUserProduct)
+        const rows = dedupeProductsPreferOwning((data?.products ?? []).map(mapUserProduct))
         setCatalog(rows)
         setSelectedId((prev) => {
           if (prev != null && rows.some((p) => String(p.id) === String(prev))) return prev
@@ -158,42 +227,29 @@ export default function ProductListPage() {
           1
 
         // 케어팁은 여권과 분리 조회 — 실패해도 여권은 유지, 로컬 캐시로 복구
+        // 현재 세대 팁이 없으면 직전 세대(리셀 판매자) 팁을 패스포트 뒷면에 표시
         try {
           const careTipsData = await getCareTips(productId)
           if (cancelled) return
           const remoteTips = (careTipsData?.careTips ?? []).map(mapCareTip)
           const localTips = getLocalCareTips(productId).map(mapCareTip)
           const tips = remoteTips.length ? remoteTips : localTips
-          const preferred = pickPreferredCareTip(tips, generation)
+          const preferred = pickPassportCareTip(tips, generation)
           setCareTipText(preferred?.content || '')
         } catch {
           if (cancelled) return
           const localTips = getLocalCareTips(productId).map(mapCareTip)
-          const preferred = pickPreferredCareTip(localTips, generation)
+          const preferred = pickPassportCareTip(localTips, generation)
           setCareTipText(preferred?.content || '')
         }
 
-        const letterTarget =
-          gens.find((g) => g.active && g.hasOpenedLetter) ||
-          gens.find((g) => g.hasOpenedLetter) ||
-          null
-        if (letterTarget) {
-          try {
-            const letterData = await getGenerationLetter(productId, letterTarget.generation)
-            if (!cancelled) setLetter(mapGenerationLetter(letterData))
-          } catch {
-            if (!cancelled) setLetter(null)
-          }
-        } else if (featured.inheritanceLetter?.content) {
-          setLetter({
-            content: featured.inheritanceLetter.content,
-            fromKeeperLabel: featured.inheritanceLetter.fromKeeperLabel,
-            letterId: featured.inheritanceLetter.letterId,
-            openedAt: featured.inheritanceLetter.openedAt,
-          })
-        } else {
-          setLetter(null)
-        }
+        const resolvedLetter = await resolvePassportLetter({
+          productId,
+          inheritanceLetter: featured.inheritanceLetter,
+          gens,
+          currentGeneration: generation,
+        })
+        if (!cancelled) setLetter(resolvedLetter)
 
         if (!cancelled) setDetailLoadedKey(`detail:${productId}`)
       })
@@ -205,7 +261,7 @@ export default function ProductListPage() {
         setLetter(null)
         // 여권 로드 실패 시에도 로컬 케어팁은 유지 시도
         const localTips = getLocalCareTips(productId).map(mapCareTip)
-        const preferred = pickPreferredCareTip(localTips, generationHint)
+        const preferred = pickPassportCareTip(localTips, generationHint)
         setCareTipText(preferred?.content || '')
         setDetailError(err.message || '디지털 여권을 불러오지 못했습니다')
         setDetailLoadedKey(`detail:${productId}`)
@@ -300,11 +356,6 @@ export default function ProductListPage() {
     e?.preventDefault?.()
     e?.stopPropagation?.()
     if (!featured) return
-    if (featured.ownershipStatus !== 'owning') {
-      setCareError('소유 중인 제품에서만 케어팁을 작성할 수 있습니다.')
-      setCareEditing(false)
-      return
-    }
     const content = careDraft.trim()
     if (!content) {
       setCareError('케어팁 내용을 입력해 주세요.')
@@ -392,6 +443,7 @@ export default function ProductListPage() {
     featured?.inheritanceLetter?.content ||
     '조회 가능한 계승 편지가 없습니다.'
   const displayedCareTip = careTipText || '아직 작성된 케어팁이 없습니다.'
+  const careEditLabel = careTipText ? '수정' : '작성'
 
   return (
     <AppShell showBack onBack={() => navigate('/my')}>
@@ -532,7 +584,7 @@ export default function ProductListPage() {
                     >
                       <div className="passport-back__panel-head">
                         <p className="passport-back__panel-label">케어 Tip</p>
-                        {canWriteCareTip ? (
+                        {canEditCareTip ? (
                           <button
                             type="button"
                             className="passport-back__panel-edit"
@@ -543,11 +595,11 @@ export default function ProductListPage() {
                               setCareDraft(careTipText || '')
                             }}
                           >
-                            {careEditing ? '취소' : '작성'}
+                            {careEditing ? '취소' : careEditLabel}
                           </button>
                         ) : null}
                       </div>
-                      {canWriteCareTip && careEditing ? (
+                      {canEditCareTip && careEditing ? (
                         <form
                           className="passport-back__care-form"
                           onSubmit={saveCareTip}

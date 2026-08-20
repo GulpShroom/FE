@@ -7,6 +7,7 @@ import {
   normalizeConditionGrade,
   updateResell,
 } from '../../api/resells'
+import { getResellLetterDraft, saveResellLetterDraft } from '../../api/resellLetterDraft'
 import { loadResellSharedContents, resolveOwnedProductId } from '../../api/resellContent'
 import { useProfile } from '../../context/ProfileContext'
 import previewImageIcon from '../../assets/final/resell-preview-image.svg'
@@ -110,8 +111,23 @@ export default function ResellEditPage() {
           wantCareTip: Boolean(data.lockedJourney?.hasCareTip),
         })
         if (cancelled) return
-        if (!location.state?.resellLetter) setLetter(shared.letter || '')
-        if (!location.state?.resellCareTip) setCareTip(shared.careTip || '')
+        if (location.state?.resellLetter) {
+          setLetter(location.state.resellLetter)
+        } else {
+          const draft = getResellLetterDraft(id)
+          setLetter(draft || shared.letter || '')
+        }
+        if (location.state?.resellCareTip) {
+          setCareTip(location.state.resellCareTip)
+        } else {
+          setCareTip(shared.careTip || '')
+        }
+        if (location.state?.resellLetterShared != null) {
+          setLetterShared(Boolean(location.state.resellLetterShared))
+        }
+        if (location.state?.resellCaretipShared != null) {
+          setCaretipShared(Boolean(location.state.resellCaretipShared))
+        }
       })
       .catch((err) => {
         if (cancelled) return
@@ -180,7 +196,13 @@ export default function ResellEditPage() {
         letterShared: letterShared || Boolean(letter),
         caretipShared: caretipShared || Boolean(careTip),
         ...(photoUrls.length > 0 ? { photoUrls } : {}),
+        ...(letter.trim() ? { letterContent: letter.trim() } : {}),
       })
+      if (letter.trim()) {
+        saveResellLetterDraft(id, letter.trim())
+      } else {
+        saveResellLetterDraft(id, '')
+      }
       navigate('/resell?manage=1')
     } catch (err) {
       setSaveError(err?.message || '리셀글 수정에 실패했습니다.')

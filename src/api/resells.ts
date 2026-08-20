@@ -30,6 +30,8 @@ export interface ResellSaveRequest {
   letterShared: boolean
   caretipShared: boolean
   photoUrls: string[]
+  /** 판매자 편지 본문 — 백엔드가 무시할 수 있으나 구매 전 초안 전달용으로 함께 전송 */
+  letterContent?: string
 }
 
 export interface ResellSaveResponse {
@@ -221,6 +223,7 @@ export interface UpdateResellBody {
   letterShared?: boolean
   caretipShared?: boolean
   photoUrls?: string[]
+  letterContent?: string
 }
 
 export interface UpdateResellResult {
