@@ -222,7 +222,7 @@ export default function RegisterFlowPage() {
 
   const next = () => {
     if (step >= steps.length - 1) {
-      navigate('/')
+      navigate('/main')
       return
     }
     setStep((current) => current + 1)
@@ -396,7 +396,7 @@ export default function RegisterFlowPage() {
   const finishRegistration = async () => {
     const memo = form.body.trim()
     if (!memo || !registrationResult?.firstJourneyId) {
-      navigate('/')
+      navigate('/main')
       return
     }
 
@@ -407,7 +407,7 @@ export default function RegisterFlowPage() {
         userId: profile.id,
         userMemo: memo,
       })
-      navigate('/')
+      navigate('/main')
     } catch (error) {
       setApiError(error.message)
     } finally {
