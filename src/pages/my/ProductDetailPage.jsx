@@ -1,7 +1,7 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
 import { AppShell } from '../../components/AppShell'
-import { getLocalCareTips, getLocalDiagnoses } from '../../api/my'
+import { getDiagnoses, getLocalDiagnoses, mapDiagnosis } from '../../api/my'
 import {
   getDigitalPassport,
   getProductLineage,
@@ -79,23 +79,25 @@ export default function ProductDetailPage() {
   const [loadError, setLoadError] = useState(null)
   const [loadedKey, setLoadedKey] = useState(null)
   const [detail, setDetail] = useState(null)
-  const [careTips, setCareTips] = useState(() => getLocalCareTips(id))
   const [diagnoses, setDiagnoses] = useState(() => getLocalDiagnoses(id))
   const [diagGen, setDiagGen] = useState('all')
-  const [careGen, setCareGen] = useState('all')
 
   const fetchKey = `care:${id}`
   const loading = loadedKey !== fetchKey
 
   useEffect(() => {
     let cancelled = false
-    Promise.all([getDigitalPassport(id), getProductLineage(id)])
-      .then(([passportData, lineageData]) => {
+    Promise.all([
+      getDigitalPassport(id),
+      getProductLineage(id),
+      getDiagnoses(id).catch(() => null),
+    ])
+      .then(([passportData, lineageData, diagnosisData]) => {
         if (cancelled) return
         setProduct(mapDigitalPassport(passportData))
         setLineage((lineageData?.generations ?? []).map(mapLineageGeneration))
-        setCareTips(getLocalCareTips(id))
-        setDiagnoses(getLocalDiagnoses(id))
+        const remote = (diagnosisData?.diagnoses ?? []).map(mapDiagnosis)
+        setDiagnoses(remote.length ? remote : getLocalDiagnoses(id))
         setLoadError(null)
         setLoadedKey(fetchKey)
       })
@@ -103,6 +105,7 @@ export default function ProductDetailPage() {
         if (cancelled) return
         setProduct(null)
         setLineage([])
+        setDiagnoses(getLocalDiagnoses(id))
         setLoadError(err.message || '제품 정보를 불러오지 못했습니다')
         setLoadedKey(fetchKey)
       })
@@ -113,8 +116,14 @@ export default function ProductDetailPage() {
 
   useEffect(() => {
     const refresh = () => {
-      setCareTips(getLocalCareTips(id))
-      setDiagnoses(getLocalDiagnoses(id))
+      getDiagnoses(id)
+        .then((data) => {
+          const remote = (data?.diagnoses ?? []).map(mapDiagnosis)
+          setDiagnoses(remote.length ? remote : getLocalDiagnoses(id))
+        })
+        .catch(() => {
+          setDiagnoses(getLocalDiagnoses(id))
+        })
     }
     window.addEventListener('focus', refresh)
     return () => window.removeEventListener('focus', refresh)
@@ -129,7 +138,6 @@ export default function ProductDetailPage() {
   }, [lineage])
 
   const filteredDiagnoses = diagnoses.filter((d) => matchesGeneration(d.generation, diagGen))
-  const filteredCareTips = careTips.filter((c) => matchesGeneration(c.generation, careGen))
 
   return (
     <AppShell showBack onBack={() => navigate('/my/products')}>
@@ -180,26 +188,6 @@ export default function ProductDetailPage() {
               filteredDiagnoses.map((d) => (
                 <HistoryRow key={d.id} item={d} onOpen={setDetail} />
               ))
-            )}
-          </div>
-        </section>
-
-        <section className="care-section">
-          <div className="care-section__head">
-            <h2 className="care-section__title">세대별 케어 이력</h2>
-            <GenDropdown
-              menuId="care-gen-menu"
-              options={genOptions}
-              value={careGen}
-              onChange={setCareGen}
-            />
-          </div>
-
-          <div className="care-rows">
-            {filteredCareTips.length === 0 ? (
-              <p className="hint-text">아직 케어 이력이 없습니다.</p>
-            ) : (
-              filteredCareTips.map((c) => <HistoryRow key={c.id} item={c} onOpen={setDetail} />)
             )}
           </div>
         </section>

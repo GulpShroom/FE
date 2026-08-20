@@ -139,6 +139,21 @@ export function analyzeJourney({ productId, userId, tone = 'emotional', photo })
   })
 }
 
+/**
+ * POST /journeys/{journeyId}/recall — 회고 문장 재생성
+ * 저장된 여정 태그로 AI 회고를 다시 생성합니다.
+ */
+export function regenerateJourneyRecall(journeyId, { userId, tone = 'emotional' } = {}) {
+  return api.post(
+    `/journeys/${toApiId(journeyId)}/recall`,
+    {
+      userId: toApiId(userId),
+      tone: TONE_TO_API[tone] || tone || 'emotional',
+    },
+    { timeout: 60000 },
+  )
+}
+
 /** GET /journeys/{journeyId} */
 export function getJourney(journeyId, { userId } = {}) {
   return api.get(`/journeys/${toApiId(journeyId)}`, {
