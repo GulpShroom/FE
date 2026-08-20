@@ -6,7 +6,10 @@ import { useProfile } from '../../context/ProfileContext'
 import { deleteJourney, getCachedJourney } from '../../api/journeys'
 import { journeys, products } from '../../data/mock'
 import journeyHero from '../../assets/final/journey-detail-hero.png'
-import mapPanel from '../../assets/final/map-panel.png'
+import expandedMap from '../../assets/final/expanded-map.png'
+import mapMarker1 from '../../assets/final/map-marker-1.png'
+import mapMarker2 from '../../assets/final/map-marker-2.png'
+import mapMarker3 from '../../assets/final/map-marker-3.png'
 
 export default function JourneyDetailPage() {
   const { id } = useParams()
@@ -41,7 +44,12 @@ export default function JourneyDetailPage() {
           : 'other'
 
   const canEdit = mode === 'owned' || mode === 'linked'
-  const heroSrc = journey.image || journeyHero
+  const photoIndex = Number(searchParams.get('photo'))
+  const markerPhotos = [mapMarker1, mapMarker2, mapMarker3]
+  const product = products.find((item) => item.id === productId)
+  const heroSrc = mode === 'other'
+    ? product?.image || journey.image || journeyHero
+    : markerPhotos[photoIndex - 1] || journey.image || journeyHero
   const recordsPath = `/journey/records/${productId}`
   const editPath = `/journey/entry/${journey.id}/edit?productId=${encodeURIComponent(productId)}`
 
@@ -56,7 +64,13 @@ export default function JourneyDetailPage() {
     ? journey.tags
     : [journey.activity, journey.situation, journey.style].filter(Boolean)
 
-  const goBack = () => navigate(recordsPath)
+  const goBack = () => {
+    if (searchParams.get('from') === 'map') {
+      navigate('/main?map=expanded')
+      return
+    }
+    navigate(recordsPath)
+  }
 
   const onDelete = async () => {
     if (deleting) return false
@@ -77,14 +91,14 @@ export default function JourneyDetailPage() {
   return (
     <AppShell
       showBack
-      showTagline={mode === 'owned'}
-      showNav={mode !== 'other'}
+      showTagline={false}
+      showNav={false}
       onBack={goBack}
     >
       <div className={`page page--journey-detail page--journey-detail--${mode}`}>
         {mode === 'other' || mode === 'owned' ? (
           <div className="journey-detail-map" aria-hidden>
-            <img src={mapPanel} alt="" width={375} height={812} />
+            <img src={expandedMap} alt="" width={375} height={729} />
           </div>
         ) : null}
 
@@ -136,12 +150,8 @@ export default function JourneyDetailPage() {
             </div>
           ) : null}
 
-          <div
-            className={
-              mode === 'linked'
-                ? 'journey-detail-linked__memo'
-                : `journey-detail-card__memo${mode === 'other' ? ' journey-detail-card__memo--gold' : ''}`
-            }
+          {mode !== 'other' ? <div
+            className={mode === 'linked' ? 'journey-detail-linked__memo' : 'journey-detail-card__memo journey-detail-card__memo--gold'}
           >
             <p
               className={
@@ -161,9 +171,9 @@ export default function JourneyDetailPage() {
             >
               <p>{journey.memo ?? journey.body}</p>
             </div>
-          </div>
+          </div> : null}
 
-          {mode === 'owned' && canEdit ? (
+          {mode === 'owned' && canEdit && searchParams.get('actions') === '1' ? (
             <div className="journey-detail-card__actions">
               <button
                 type="button"
