@@ -40,12 +40,23 @@ export interface CompleteTransferBody {
   newOwnerId: number
 }
 
+export type InheritedTagType = 'activity' | 'situation' | 'style'
+
+export interface InheritedTag {
+  type: InheritedTagType
+  value: string
+  city: string
+  year: number
+}
+
 export interface TransferCompleteResult {
   productId: number
   newGeneration: number
   letterOpened: boolean
   transferStatus: string
   completedAt: string
+  /** 구매·계승 완료 후에만 공개되는 판매자 선택 태그 */
+  inheritedTags: InheritedTag[]
 }
 
 /** POST /api/v1/mcarry/transfers — 계승 시작 */

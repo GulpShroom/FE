@@ -54,7 +54,13 @@ export default function ResellPassportPage() {
 
   const activeGenId =
     generations.find((generation) => generation.active)?.id ?? generations[0]?.id
-  const journeyText = ''
+  const inheritedTags = Array.isArray(location.state?.inheritedTags)
+    ? location.state.inheritedTags
+    : []
+  const journeyText = inheritedTags
+    .map((tag) => String(tag?.value || '').trim())
+    .filter(Boolean)
+    .join(' · ')
   const toggleFromKeyboard = (event) => {
     if (event.key !== 'Enter' && event.key !== ' ') return
     event.preventDefault()
@@ -68,6 +74,7 @@ export default function ResellPassportPage() {
         transferId: location.state?.transferId,
         officialName: passport?.name,
         image: passport?.image,
+        inheritedTags,
       },
     })
   }
