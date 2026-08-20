@@ -15,7 +15,7 @@ export function ProfileProvider({ children }) {
     }
 
     return {
-      id: seedUser.id,
+      id: seedUser.id ?? 1,
       name: seedUser.name,
       handle: seedUser.handle,
       ownedCount: seedUser.ownedCount,

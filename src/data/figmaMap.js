@@ -85,10 +85,17 @@ export const SCREENS = {
 
 /**
  * Route map (service IA)
- * Nav tabs: /journey | /register | / | /resell | /my
+ * Nav tabs: /journey | /register | /main | /resell | /my
+ *
+ * Back flow (Figma arrows):
+ *   /my ← /my/products ← /my/products/:id ← /my/products/:id/ai
+ *   /main ← /journey ← /journey/records/:productId
+ *        ↳ /journey/new | /journey/entry/:id ← /journey/entry/:id/edit
+ *   map detail ?from=map → /main?map=expanded
  */
 export const ROUTES = {
   home: '/',
+  main: '/main',
   journeyPassports: '/journey', // MY PASSPORTS vertical cards
   journeyRecords: '/journey/records/:productId', // MY JOURNEYS list
   journeyEntry: '/journey/entry/:id',

@@ -48,6 +48,26 @@ const CITY_TO_UI = Object.fromEntries(
   Object.entries(CITY_TO_API).map(([ko, en]) => [en, ko]),
 )
 
+/** API tag 필드가 string 또는 { tag, source } 인 경우 모두 문자열로 정규화 */
+function pickTag(entry) {
+  if (entry == null) return ''
+  if (typeof entry === 'string' || typeof entry === 'number') {
+    const text = String(entry).trim()
+    return text
+  }
+  if (typeof entry === 'object') {
+    const text = entry.tag
+    if (text == null || text === '') return ''
+    return String(text).trim()
+  }
+  return ''
+}
+
+function pickTagSource(entry, fallback = 'free_text') {
+  if (entry && typeof entry === 'object' && entry.source) return entry.source
+  return fallback
+}
+
 export function stripRecallQuotes(text) {
   return String(text || '')
     .trim()
@@ -102,6 +122,37 @@ export function createJourney(body) {
   return api.post('/journeys', body)
 }
 
+/**
+ * POST /journeys/analyze — AI 여정 큐레이터
+ * OpenAPI: photo = multipart, productId/userId/tone = query
+ */
+export function analyzeJourney({ productId, userId, tone = 'emotional', photo }) {
+  const form = new FormData()
+  if (photo) form.append('photo', photo)
+  return api.post('/journeys/analyze', form, {
+    params: {
+      productId: toApiId(productId),
+      userId: toApiId(userId),
+      tone: TONE_TO_API[tone] || tone || 'emotional',
+    },
+    timeout: 60000,
+  })
+}
+
+/** GET /journeys/{journeyId} */
+export function getJourney(journeyId, { userId } = {}) {
+  return api.get(`/journeys/${toApiId(journeyId)}`, {
+    params: { userId: toApiId(userId) },
+  })
+}
+
+/** GET /products/{productId}/on-this-day */
+export function getOnThisDay(productId, { userId } = {}) {
+  return api.get(`/products/${toApiId(productId)}/on-this-day`, {
+    params: userId != null ? { userId: toApiId(userId) } : undefined,
+  })
+}
+
 /** PATCH /journeys/{journeyId} */
 export function updateJourney(journeyId, body) {
   return api.patch(`/journeys/${toApiId(journeyId)}`, body)
@@ -142,7 +193,7 @@ export function buildCreateJourneyBody(form, { userId, photoUrl }) {
   }
 }
 
-export function buildUpdateJourneyBody(form, initial, { userId }) {
+export function buildUpdateJourneyBody(form, initial, { userId, photoUrl } = {}) {
   const body = {
     userId,
     country: countryToApi(form.country),
@@ -176,6 +227,11 @@ export function buildUpdateJourneyBody(form, initial, { userId }) {
     body.journeyMonth = monthToApi(form.month)
   }
 
+  const nextPhoto = photoUrl || form.photoUrl
+  if (nextPhoto && nextPhoto !== initial.photoUrl) {
+    body.photoUrl = nextPhoto
+  }
+
   return body
 }
 
@@ -190,25 +246,88 @@ export function mapProductJourney(item, product) {
     id: String(item.journeyId),
     productId: product.id,
     status: item.ownershipStatus === 'transferred' ? 'transferred' : 'owned',
+    ownershipStatus: item.ownershipStatus || 'owning',
     alias: product.alias,
     productNameEn: product.nameEn ?? product.name,
     quote: quoted,
-    image: item.thumbnailUrl || journeyThumb,
+    image: item.thumbnailUrl || item.photoUrl || journeyThumb,
     country: item.country ?? null,
     city: item.city ?? null,
     journeyYear: item.journeyYear ?? null,
     journeyMonth: item.journeyMonth ?? null,
     memo: item.userMemo ?? '',
     tone: TONE_TO_UI[item.recallTone] || '감성적',
-    activity: item.tags?.activity?.tag || item.tags?.activity || '',
-    situation: item.tags?.situation?.tag || item.tags?.situation || '',
-    style: item.tags?.style?.tag || item.tags?.style || '',
+    activity: pickTag(item.tags?.activity),
+    situation: pickTag(item.tags?.situation),
+    style: pickTag(item.tags?.style),
     tagSources: {
-      activity: item.tags?.activity?.source || 'free_text',
-      situation: item.tags?.situation?.source || 'free_text',
-      style: item.tags?.style?.source || 'free_text',
+      activity: pickTagSource(item.tags?.activity),
+      situation: pickTagSource(item.tags?.situation),
+      style: pickTagSource(item.tags?.style),
     },
   }
+}
+
+export function mapJourneyDetail(item, { productId } = {}) {
+  const recall = item?.recallText?.trim() || ''
+  const quoted =
+    !recall || recall.startsWith('“') || recall.startsWith('"')
+      ? recall
+      : `“${recall}”`
+
+  return {
+    id: String(item.journeyId),
+    productId: productId != null ? String(productId) : undefined,
+    status: item.isAuthor === false ? 'other' : 'owned',
+    quote: quoted,
+    image: item.photoUrl || journeyThumb,
+    country: item.country ?? null,
+    city: item.city ?? null,
+    journeyYear: item.journeyYear ?? null,
+    journeyMonth: item.journeyMonth ?? null,
+    memo: item.userMemo ?? '',
+    tone: TONE_TO_UI[item.recallTone] || '감성적',
+    activity: pickTag(item.tags?.activity),
+    situation: pickTag(item.tags?.situation),
+    style: pickTag(item.tags?.style),
+    tagSources: {
+      activity: pickTagSource(item.tags?.activity),
+      situation: pickTagSource(item.tags?.situation),
+      style: pickTagSource(item.tags?.style),
+    },
+    isAuthor: item.isAuthor,
+    isFirstJourney: item.isFirstJourney,
+  }
+}
+
+/** Apply AI curator response onto the journey form fields */
+export function applyAnalyzeToForm(form, data) {
+  if (!data) return form
+  const next = { ...form }
+  if (data.recallText) {
+    const text = stripRecallQuotes(data.recallText)
+    next.quote = text ? `“${text}”` : form.quote
+  }
+  if (data.recallTone && TONE_TO_UI[data.recallTone]) {
+    next.tone = TONE_TO_UI[data.recallTone]
+  }
+  if (data.country) next.country = countryToUi(data.country) || data.country
+  if (data.city) next.city = cityToUi(data.city) || data.city
+  if (data.year != null) next.year = String(data.year)
+  if (data.month != null) next.month = monthToUi(data.month)
+  if (data.activityTag) {
+    next.activity = data.activityTag
+    next.tagSources = { ...next.tagSources, activity: 'ai' }
+  }
+  if (data.situationTag) {
+    next.situation = data.situationTag
+    next.tagSources = { ...next.tagSources, situation: 'ai' }
+  }
+  if (data.styleTag) {
+    next.style = data.styleTag
+    next.tagSources = { ...next.tagSources, style: 'ai' }
+  }
+  return next
 }
 
 export function cacheProductJourneys(productId, journeys) {

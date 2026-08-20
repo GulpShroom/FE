@@ -19,6 +19,24 @@ export const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+function clearContentType(headers) {
+  if (!headers) return
+  if (typeof headers.delete === 'function') {
+    headers.delete('Content-Type')
+    headers.delete('content-type')
+    return
+  }
+  delete headers['Content-Type']
+  delete headers['content-type']
+}
+
+api.interceptors.request.use((config) => {
+  if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+    clearContentType(config.headers)
+  }
+  return config
+})
+
 function toApiError(status, body, fallbackMessage) {
   return new ApiError({
     status,
@@ -68,4 +86,20 @@ export function toApiId(id) {
   const raw = String(id).replace(/^p/i, '')
   const n = Number(raw)
   return Number.isFinite(n) ? n : id
+}
+
+export function sameProductId(a, b) {
+  return String(toApiId(a)) === String(toApiId(b))
+}
+
+export function isNotFoundError(error) {
+  if (!error) return false
+  if (error.status === 404 || error.code === 'E404') return true
+  const message = String(error.message || '')
+  return message.includes('제품을 찾을 수 없습니다') || message.includes('제품 정보를 찾을 수 없습니다')
+}
+
+export function isConnectionError(error) {
+  const status = error?.status
+  return status === 0 || status === 502 || status === 503 || status === 504
 }

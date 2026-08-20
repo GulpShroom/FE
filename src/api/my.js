@@ -1,0 +1,67 @@
+import { api, toApiId } from './client'
+
+const CARE_CACHE = 'mc-care-tip-cache'
+const DIAG_CACHE = 'mc-diagnosis-cache'
+
+function readCache(key, productId) {
+  try {
+    const parsed = JSON.parse(sessionStorage.getItem(key) || '{}')
+    const list = parsed[String(toApiId(productId))]
+    return Array.isArray(list) ? list : []
+  } catch {
+    return []
+  }
+}
+
+function writeCache(key, productId, list) {
+  try {
+    const parsed = JSON.parse(sessionStorage.getItem(key) || '{}')
+    parsed[String(toApiId(productId))] = list
+    sessionStorage.setItem(key, JSON.stringify(parsed))
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
+export function createCareTip(productId, { authorId, content }) {
+  return api.post(`/products/${toApiId(productId)}/care-tip`, {
+    authorId: toApiId(authorId),
+    content,
+  })
+}
+
+/**
+ * POST /products/{productId}/diagnosis
+ * OpenAPI: photos = multipart, userId = query
+ */
+export function createDiagnosis(productId, { userId, photos }) {
+  const form = new FormData()
+  for (const file of photos ?? []) {
+    if (file) form.append('photos', file)
+  }
+  return api.post(`/products/${toApiId(productId)}/diagnosis`, form, {
+    params: { userId: toApiId(userId) },
+    timeout: 60000,
+  })
+}
+
+/** 목록 GET API가 없어 세션에만 보관 (서버 이력 조회 불가 시 대비) */
+export function getLocalCareTips(productId) {
+  return readCache(CARE_CACHE, productId)
+}
+
+export function cacheLocalCareTip(productId, tip) {
+  const next = [tip, ...getLocalCareTips(productId)]
+  writeCache(CARE_CACHE, productId, next)
+  return next
+}
+
+export function getLocalDiagnoses(productId) {
+  return readCache(DIAG_CACHE, productId)
+}
+
+export function cacheLocalDiagnosis(productId, item) {
+  const next = [item, ...getLocalDiagnoses(productId)]
+  writeCache(DIAG_CACHE, productId, next)
+  return next
+}
