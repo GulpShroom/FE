@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { AppShell } from '../../components/AppShell'
-import { GoogleJourneyMap } from '../../components/GoogleJourneyMap'
+import { LeafletJourneyMap } from '../../components/LeafletJourneyMap'
 import { useProfile } from '../../context/ProfileContext'
 import { getProductJourneys } from '../../api/journeys'
 import logo from '../../assets/final/logo-mark.png'
@@ -13,7 +13,8 @@ import expandedMap from '../../assets/final/expanded-map.png'
 import mapMarker1 from '../../assets/final/map-marker-1.png'
 import mapMarker2 from '../../assets/final/map-marker-2.png'
 import mapMarker3 from '../../assets/final/map-marker-3.png'
-import { mapCountries, products } from '../../data/mock'
+import { products } from '../../data/mock'
+import { allCountriesOption, countryGroups, searchableCountries } from '../../data/countries'
 import { resellProductDummies } from '../../data/resellDummies'
 
 const selectableProducts = resellProductDummies
@@ -75,12 +76,29 @@ function ProductJourneyDetails({
   generationIndex,
   onGeneration,
   countryId,
-  countryOpen,
-  onToggleCountry,
   onSelectCountry,
   mapExpanded,
   onToggleMap,
 }) {
+  const [countryQuery, setCountryQuery] = useState('')
+  const [countrySearchOpen, setCountrySearchOpen] = useState(false)
+  const normalizedQuery = countryQuery.trim().toLocaleLowerCase('ko-KR')
+  const filteredCountries = searchableCountries.filter((country) => (
+    !normalizedQuery || country.label.toLocaleLowerCase('ko-KR').includes(normalizedQuery)
+  ))
+  const filteredCountryGroups = countryGroups
+    .map((group) => ({
+      ...group,
+      countries: group.countries.filter((country) => filteredCountries.includes(country)),
+    }))
+    .filter((group) => group.countries.length > 0)
+
+  const selectMapCountry = (country) => {
+    onSelectCountry(country.id)
+    setCountryQuery(country.id === 'all' ? '' : country.label)
+    setCountrySearchOpen(false)
+  }
+
   if (mapExpanded) {
     const markers = [
       { image: mapMarker1, className: 'expanded-map__marker--one', href: '/journey/entry/j1?view=owned&photo=1&from=map' },
@@ -136,28 +154,79 @@ function ProductJourneyDetails({
         </section>
 
         <section className={`map-panel${mapExpanded ? ' is-expanded' : ''}`}>
-        <div className="map-country-bar" role="listbox" aria-label="국가 선택">
-          {mapCountries.slice(0, countryOpen ? 4 : 1).map((country) => (
+        <div className="map-country-search">
+          <div className="map-country-search__field">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="11" cy="11" r="6.5" />
+              <path d="m16 16 4 4" />
+            </svg>
+            <input
+              type="search"
+              value={countryQuery}
+              placeholder="나라 검색"
+              aria-label="나라 검색"
+              aria-expanded={countrySearchOpen}
+              aria-controls="map-country-options"
+              onFocus={() => setCountrySearchOpen(true)}
+              onBlur={() => setCountrySearchOpen(false)}
+              onChange={(event) => {
+                setCountryQuery(event.target.value)
+                setCountrySearchOpen(true)
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && filteredCountries.length === 1) {
+                  event.preventDefault()
+                  selectMapCountry(filteredCountries[0])
+                }
+                if (event.key === 'Escape') setCountrySearchOpen(false)
+              }}
+            />
             <button
-              key={country.id}
               type="button"
-              role="option"
-              aria-selected={countryId === country.id}
-              className={countryId === country.id ? 'is-active' : ''}
-              onClick={() => onSelectCountry(country.id)}
+              className={`map-country-search__toggle${countrySearchOpen ? ' is-open' : ''}`}
+              aria-label={countrySearchOpen ? '국가 목록 닫기' : '국가 목록 열기'}
+              aria-expanded={countrySearchOpen}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => setCountrySearchOpen((open) => !open)}
             >
-              {country.label}
+              <span aria-hidden="true" />
             </button>
-          ))}
-          <button
-            type="button"
-            className={`map-country-bar__next${countryOpen ? ' is-open' : ''}`}
-            aria-label={countryOpen ? '국가 목록 닫기' : '국가 목록 열기'}
-            aria-expanded={countryOpen}
-            onClick={onToggleCountry}
-          >
-            <span aria-hidden="true" />
-          </button>
+          </div>
+          {countrySearchOpen ? (
+            <div id="map-country-options" className="map-country-search__options" role="listbox">
+              <button
+                type="button"
+                role="option"
+                aria-selected={countryId === 'all'}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => selectMapCountry(allCountriesOption)}
+              >
+                전체 국가
+              </button>
+              {filteredCountryGroups.map((group) => (
+                <div className="map-country-search__group" key={group.continent} role="group" aria-label={group.continent}>
+                  <p className="map-country-search__continent">
+                    {group.continent} <span>{group.countries.length}개국</span>
+                  </p>
+                  {group.countries.map((country) => (
+                    <button
+                      key={country.id}
+                      type="button"
+                      role="option"
+                      aria-selected={countryId === country.id}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => selectMapCountry(country)}
+                    >
+                      {country.label}
+                    </button>
+                  ))}
+                </div>
+              ))}
+              {filteredCountries.length === 0 ? (
+                <p>검색 결과가 없습니다.</p>
+              ) : null}
+            </div>
+          ) : null}
         </div>
         <button
           type="button"
@@ -171,8 +240,7 @@ function ProductJourneyDetails({
         </button>
 
           <div className="map-panel__body">
-            <GoogleJourneyMap
-              fallbackSrc={product.map}
+            <LeafletJourneyMap
               points={product.mapCounts}
               countryId={countryId}
             />
@@ -195,7 +263,6 @@ export default function MainPage() {
   const activeProductId = product?.id
 
   const [generationIndex, setGenerationIndex] = useState(1)
-  const [countryOpen, setCountryOpen] = useState(false)
   const [countryId, setCountryId] = useState('all')
   const [mapExpanded, setMapExpanded] = useState(() => searchParams.get('map') === 'expanded')
 
@@ -234,7 +301,6 @@ export default function MainPage() {
       setProductIndex((previous) => {
         if (index === previous || index < 0 || index >= catalog.length) return previous
         setCountryId('all')
-        setCountryOpen(false)
         setMapExpanded(false)
         return index
       })
@@ -250,7 +316,6 @@ export default function MainPage() {
     track.scrollTo({ left: index * track.clientWidth, behavior: 'smooth' })
     setProductIndex(index)
     setCountryId('all')
-    setCountryOpen(false)
     setMapExpanded(false)
   }
 
@@ -353,8 +418,6 @@ export default function MainPage() {
           generationIndex={Math.min(generationIndex, product.generations.length - 1)}
           onGeneration={setGenerationIndex}
           countryId={countryId}
-          countryOpen={countryOpen}
-          onToggleCountry={() => setCountryOpen((open) => !open)}
           onSelectCountry={(id) => {
             setCountryId(id)
           }}
@@ -367,13 +430,6 @@ export default function MainPage() {
           to={`/journey/new?productId=${encodeURIComponent(product.id)}`}
         >
           <span>여정 기록하기</span>
-          <img
-            className="main-journey-add-button__arrow"
-            src={ctaArrow}
-            alt=""
-            width={50}
-            height={50}
-          />
         </Link>
       </main>
     </AppShell>

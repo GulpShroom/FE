@@ -63,7 +63,6 @@ export function useResellList(
       .then(setData)
       .catch((requestError: unknown) => {
         if (axios.isCancel(requestError)) return
-        console.error('API 요청 에러 상세:', requestError)
         setError(
           requestError instanceof Error
             ? requestError

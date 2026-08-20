@@ -49,18 +49,6 @@ const DEFAULT_PAGE = 0
 const DEFAULT_SIZE = 10
 const RESELLS_ENDPOINT = '/resells'
 
-function getRequestUrl(endpoint: string): string {
-  const baseUrl = api.defaults.baseURL ?? ''
-  const joinedUrl = `${baseUrl.replace(/\/$/, '')}/${endpoint.replace(/^\//, '')}`
-
-  if (/^https?:\/\//i.test(joinedUrl)) return joinedUrl
-  if (typeof window !== 'undefined') {
-    return new URL(joinedUrl, window.location.origin).toString()
-  }
-
-  return joinedUrl
-}
-
 /**
  * GET /api/v1/mcarry/resells
  *
@@ -80,8 +68,6 @@ export async function getResellList(
   if (role && userId == null) {
     throw new Error('role을 지정할 때는 userId가 필요합니다.')
   }
-
-  console.log('요청 URL:', getRequestUrl(RESELLS_ENDPOINT))
 
   return api.get<
     ApiResponseResellListResponse,

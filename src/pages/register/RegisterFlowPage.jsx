@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AppShell } from '../../components/AppShell'
 import { Modal } from '../../components/Modal'
@@ -13,7 +13,7 @@ import {
 import stampImg from '../../assets/final/stamp.png'
 import productBag from '../../assets/final/product-bag.png'
 import ctaArrow from '../../assets/final/cta-arrow.svg'
-import planeTip from '../../assets/final/plane-tip-clear.png'
+import planeTip from '../../assets/final/progress-plane.png'
 
 const steps = ['qr', 'auth', 'purchase', 'alias', 'passport', 'first-journey']
 
@@ -69,19 +69,82 @@ function DarkCta({ sub, title, onClick, multiline = false, disabled = false }) {
   )
 }
 
-function QrScanner({ onSuccess, disabled }) {
+function QrScanner({ onDetected, onError, disabled }) {
+  const videoRef = useRef(null)
+  const detectedRef = useRef(false)
+
+  useEffect(() => {
+    if (disabled) return undefined
+
+    let stream
+    let animationFrame
+    let cancelled = false
+
+    const stopCamera = () => {
+      window.cancelAnimationFrame(animationFrame)
+      stream?.getTracks().forEach((track) => track.stop())
+    }
+
+    const startCamera = async () => {
+      try {
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw new Error('이 브라우저에서는 카메라를 사용할 수 없습니다.')
+        }
+        if (!window.BarcodeDetector) {
+          throw new Error('이 브라우저에서는 QR 코드 인식을 지원하지 않습니다.')
+        }
+
+        const detector = new window.BarcodeDetector({ formats: ['qr_code'] })
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: { facingMode: { ideal: 'environment' } },
+        })
+        if (cancelled || !videoRef.current) {
+          stopCamera()
+          return
+        }
+
+        videoRef.current.srcObject = stream
+        await videoRef.current.play()
+
+        const detect = async () => {
+          if (cancelled || detectedRef.current || !videoRef.current) return
+          try {
+            const codes = await detector.detect(videoRef.current)
+            const qrCode = codes.find((code) => code.rawValue?.trim())?.rawValue.trim()
+            if (qrCode) {
+              detectedRef.current = true
+              stopCamera()
+              onDetected(qrCode)
+              return
+            }
+          } catch {
+            // The video may not have a decodable frame yet; keep scanning.
+          }
+          animationFrame = window.requestAnimationFrame(detect)
+        }
+
+        animationFrame = window.requestAnimationFrame(detect)
+      } catch (error) {
+        if (!cancelled) onError(error.message || '카메라를 시작하지 못했습니다.')
+      }
+    }
+
+    detectedRef.current = false
+    startCamera()
+    return () => {
+      cancelled = true
+      stopCamera()
+    }
+  }, [disabled, onDetected, onError])
+
   return (
-    <button
-      type="button"
-      className="reg-qr"
-      onClick={onSuccess}
-      disabled={disabled}
-      aria-label="QR 스캔 완료"
-    >
+    <div className={`reg-qr${disabled ? ' is-loading' : ''}`} aria-label="QR 코드 카메라 스캔 영역">
+      <video ref={videoRef} className="reg-qr__video" muted playsInline aria-hidden />
       <span className="reg-qr__corners" aria-hidden><i /><i /><i /></span>
       <span className="reg-qr__line" aria-hidden />
-      <span className="reg-qr__caption">QR 영역을 눌러 스캔하기</span>
-    </button>
+      <span className="reg-qr__caption">{disabled ? '제품 정보를 확인하고 있습니다...' : 'QR 코드를 카메라 영역에 맞춰주세요'}</span>
+    </div>
   )
 }
 
@@ -173,6 +236,7 @@ export default function RegisterFlowPage() {
   const [openSelect, setOpenSelect] = useState('')
   const [loadingAction, setLoadingAction] = useState('')
   const [apiError, setApiError] = useState('')
+  const [manualError, setManualError] = useState('')
   const [scannedProduct, setScannedProduct] = useState(null)
   const [registrationResult, setRegistrationResult] = useState(null)
   const [passportData, setPassportData] = useState(null)
@@ -186,6 +250,7 @@ export default function RegisterFlowPage() {
     date: '2026-08-24',
     alias: '출근백',
     body: '',
+    product: null,
   })
 
   const key = steps[step]
@@ -241,30 +306,50 @@ export default function RegisterFlowPage() {
   const openManualRegistration = () => {
     setRegistrationSource('manual')
     setApiError('')
+    setManualError('')
     setQrMode('manual')
   }
 
-  const authenticateProduct = async (source) => {
+  const authenticateProduct = async (source, scannedQrCode = '') => {
+    const serialNo = form.serial.trim()
+    if (source === 'manual' && !serialNo) {
+      setManualError('시리얼 넘버를 입력해 주세요.')
+      return
+    }
+
     setRegistrationSource(source)
     setApiError('')
+    setManualError('')
     setLoadingAction('scan')
     try {
       const result = await scanProduct(
         source === 'manual'
-          ? { serialNo: form.serial.trim(), qrCode: null }
-          : { serialNo: null, qrCode: 'MCM-QR-2026-001' },
+          ? { serialNo, qrCode: null }
+          : { serialNo: null, qrCode: scannedQrCode },
       )
       if (result.isRegistered) {
-        setApiError('이미 디지털 여권으로 등록된 제품입니다.')
-        setQrMode('failed')
+        const message = '이미 디지털 여권으로 등록된 제품입니다.'
+        if (source === 'manual') setManualError(message)
+        else {
+          setApiError(message)
+          setQrMode('failed')
+        }
         return
       }
       setScannedProduct(result)
-      setForm((current) => ({ ...current, serial: result.serialNo }))
+      setForm((current) => ({
+        ...current,
+        serial: result.serialNo,
+        product: result,
+      }))
       next()
     } catch (error) {
-      setApiError(error.message)
-      setQrMode('failed')
+      if (source === 'manual') {
+        setManualError(error.message || '존재하지 않거나 유효하지 않은 시리얼 넘버입니다.')
+      } else {
+        setApiError(error.message || '유효하지 않은 QR 코드입니다. 다시 스캔해 주세요.')
+        setQrMode('failed')
+      }
     } finally {
       setLoadingAction('')
     }
@@ -423,7 +508,14 @@ export default function RegisterFlowPage() {
       {key === 'qr' && qrMode === 'scan' ? (
         <div className="page page--register">
           <h1 className="reg-title">제품의 QR을 스캔해주세요</h1>
-          <QrScanner onSuccess={() => authenticateProduct('qr')} disabled={loadingAction === 'scan'} />
+          <QrScanner
+            onDetected={(qrCode) => authenticateProduct('qr', qrCode)}
+            onError={(message) => {
+              setApiError(message)
+              setQrMode('failed')
+            }}
+            disabled={loadingAction === 'scan'}
+          />
           <p className="reg-help">제품 안쪽 라벨의 QR 코드를<br />카메라 영역에 맞춰주세요.</p>
           <button type="button" className="link-quiet reg-failure-link" onClick={() => setQrMode('failed')}>
             QR이 인식되지 않나요?
@@ -457,15 +549,21 @@ export default function RegisterFlowPage() {
             <label className="reg-field-label" htmlFor="serial">시리얼 넘버</label>
             <input
               id="serial"
-              className="reg-input"
+              className={`reg-input${manualError ? ' is-error' : ''}`}
               value={form.serial}
               placeholder="예: MCM-2026-001"
-              onChange={(event) => setForm((current) => ({ ...current, serial: event.target.value }))}
+              aria-invalid={Boolean(manualError)}
+              aria-describedby={manualError ? 'serial-error' : undefined}
+              onChange={(event) => {
+                setManualError('')
+                setForm((current) => ({ ...current, serial: event.target.value }))
+              }}
             />
+            {manualError ? <p id="serial-error" className="reg-field-error" role="alert">{manualError}</p> : null}
           </div>
           <DarkCta
             title={loadingAction === 'scan' ? '정품 확인 중...' : '제품 등록하러 가기'}
-            disabled={!form.serial.trim() || loadingAction === 'scan'}
+            disabled={loadingAction === 'scan'}
             onClick={() => authenticateProduct('manual')}
           />
         </div>

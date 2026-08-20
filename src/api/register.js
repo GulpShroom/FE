@@ -1,7 +1,7 @@
 import { api, toApiId } from './client'
 
 const REGISTER_API_MODE = import.meta.env.VITE_REGISTER_API_MODE
-  || (import.meta.env.DEV ? 'mock' : 'live')
+  || 'live'
 
 export const isRegisterMockMode = REGISTER_API_MODE === 'mock'
 

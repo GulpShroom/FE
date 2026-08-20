@@ -616,6 +616,7 @@ img {
 /* Map panel — expand icon is baked into map asset; chip is interactive overlay */
 .map-panel {
   position: relative;
+  isolation: isolate;
   border: 1px solid #111;
   border-radius: 16px;
   overflow: visible;
@@ -624,6 +625,7 @@ img {
 
 .map-panel__body {
   position: relative;
+  z-index: 0;
   height: 210px;
   margin: 0;
   overflow: hidden;
@@ -646,9 +648,11 @@ img {
   width: 28px;
   height: 28px;
   border: 0;
-  background: transparent;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 92%);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
   cursor: pointer;
-  z-index: 4;
+  z-index: 1001;
   display: grid;
   place-items: center;
 }
@@ -1023,23 +1027,56 @@ img {
   width: 100%;
 }
 
-.google-journey-map {
+.leaflet-journey-map {
   width: 100%;
   height: 100%;
+  background: #eef1ed;
+  font-family: var(--mc-font-paper);
 }
 
-.google-journey-map__marker {
-  width: 40px;
-  height: 40px;
-  display: grid;
-  place-items: center;
+.leaflet-journey-marker-wrap {
+  border: 0;
+  background: transparent;
+}
+
+.leaflet-journey-marker {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  padding: 3px;
+  border: 2px solid #fff;
   border-radius: 50%;
-  background: rgba(255, 215, 136, 0.78);
-  color: rgba(0, 0, 0, 0.8);
-  font-family: var(--mc-font-paper);
-  font-size: 13px;
-  font-weight: 500;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  background: #262626;
+  box-shadow: 0 3px 10px rgb(0 0 0 / 28%);
+}
+
+.leaflet-journey-marker img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.leaflet-journey-marker span {
+  position: absolute;
+  right: -5px;
+  bottom: -4px;
+  display: grid;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  place-items: center;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: #262626;
+  color: #fff;
+  font-size: 9px;
+  line-height: 1;
+}
+
+.leaflet-control-attribution {
+  font-size: 8px;
 }
 
 .product-select {
@@ -1356,7 +1393,7 @@ img {
   position: relative;
   top: -3px;
   flex: 0 0 auto;
-  width: calc(100% - 40px);
+  width: calc(100% - 100px);
   height: 58px;
   margin: 0 auto;
   display: flex;
@@ -1364,22 +1401,12 @@ img {
   justify-content: center;
   overflow: hidden;
   border-radius: 15px;
-  background: #262626;
-  color: #fff;
+  background: rgb(255 215 136 / 0.58);
+  color: #262626;
   font-family: var(--mc-serif);
-  font-size: 20px;
+  font-size: 15px;
   font-weight: 400;
   letter-spacing: -0.2px;
-}
-
-.main-journey-add-button__arrow {
-  position: absolute;
-  top: 12px;
-  right: 15px;
-  width: 50px;
-  height: 50px;
-  object-fit: contain;
-  transform: rotate(90deg);
 }
 
 /* MY JOURNEYS list — Figma 808:1935 / 1119:278 */
@@ -7618,13 +7645,22 @@ img {
   overflow: hidden;
 }
 
-.reg-qr:disabled {
+.reg-qr.is-loading {
   cursor: wait;
   opacity: 0.65;
 }
 
+.reg-qr__video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .reg-qr__corners {
   position: relative;
+  z-index: 1;
   display: block;
   width: 92px;
   height: 92px;
@@ -7662,6 +7698,7 @@ img {
   border-radius: 99px;
   background: var(--mc-gold);
   box-shadow: 0 0 10px rgba(255, 215, 136, 0.9);
+  z-index: 1;
 }
 
 .reg-qr__caption {
@@ -7672,6 +7709,9 @@ img {
   font-size: 12px;
   color: var(--mc-ink-50);
   letter-spacing: -0.1px;
+  z-index: 1;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.82);
 }
 
 .reg-cta {
@@ -7700,11 +7740,13 @@ img {
 }
 
 .reg-cta__sub {
+  font-family: 'HUFS L', sans-serif;
   font-size: 12px;
   letter-spacing: -0.12px;
 }
 
 .reg-cta__title {
+  font-family: 'HUFS M', sans-serif;
   font-size: 20px;
   letter-spacing: -0.2px;
   line-height: 1.2;
@@ -7866,6 +7908,22 @@ img {
 
 .reg-input:focus {
   box-shadow: 0 0 0 3px rgba(54, 104, 97, 0.12);
+}
+
+.reg-input.is-error {
+  border-color: #c94b42;
+}
+
+.reg-input.is-error:focus {
+  box-shadow: 0 0 0 3px rgba(201, 75, 66, 0.12);
+}
+
+.reg-field-error {
+  margin: -10px 0 0;
+  color: #c94b42;
+  font-family: 'HUFS L', sans-serif;
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .reg-store-row {
@@ -9015,56 +9073,128 @@ img {
   height: 360px;
 }
 
-.map-country-bar {
+.map-country-search {
   position: absolute;
-  top: 12px;
-  left: 12px;
-  right: 12px;
-  z-index: 3;
+  top: 8px;
+  left: 8px;
+  width: min(170px, calc(100% - 70px));
+  z-index: 1001;
+}
+
+.map-country-search__field {
   display: flex;
   align-items: center;
-  gap: 4px;
-  white-space: nowrap;
-}
-
-.map-country-bar button {
-  flex: 0 0 auto;
-  min-width: 40px;
-  height: 24px;
-  padding: 0 8px;
-  border: 1px solid #262626;
-  border-radius: 999px;
+  gap: 7px;
+  height: 30px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 10px;
   background: #fff;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 8%);
+}
+
+.map-country-search__field svg {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: #262626;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+.map-country-search__field input {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
   color: #262626;
-  font-size: 10px;
+  font: inherit;
+  font-size: 11px;
 }
 
-.map-country-bar button.is-active {
-  background: #262626;
-  color: #fff;
+.map-country-search__field input::-webkit-search-cancel-button {
+  cursor: pointer;
 }
 
-.map-country-bar .map-country-bar__next {
-  min-width: 18px;
-  width: 18px;
+.map-country-search__toggle {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 28px;
   padding: 0;
   border: 0;
   background: transparent;
 }
 
-.map-country-bar__next span {
+.map-country-search__toggle span {
   display: block;
-  width: 9px;
-  height: 9px;
-  margin-left: 2px;
-  border-top: 2px solid #111;
-  border-right: 2px solid #111;
+  width: 8px;
+  height: 8px;
+  margin: -4px auto 0;
+  border-right: 1.5px solid #262626;
+  border-bottom: 1.5px solid #262626;
   transform: rotate(45deg);
-  transition: transform 0.2s ease;
+  transition: transform 0.18s ease;
 }
 
-.map-country-bar__next.is-open span {
+.map-country-search__toggle.is-open span {
+  margin-top: 4px;
   transform: rotate(225deg);
+}
+
+.map-country-search__options {
+  max-height: 240px;
+  margin-top: 5px;
+  padding: 5px;
+  overflow-y: auto;
+  border: 1px solid #d7d7d7;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 8px 20px rgb(0 0 0 / 14%);
+}
+
+.map-country-search__options button {
+  display: block;
+  width: 100%;
+  padding: 8px 9px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #262626;
+  font-size: 12px;
+  text-align: left;
+}
+
+.map-country-search__options button:hover,
+.map-country-search__options button[aria-selected='true'] {
+  background: #262626;
+  color: #fff;
+}
+
+.map-country-search__options p {
+  margin: 0;
+  padding: 10px 9px;
+  color: var(--mc-ink-60);
+  font-size: 12px;
+}
+
+.map-country-search__options .map-country-search__continent {
+  position: sticky;
+  top: -5px;
+  z-index: 1;
+  padding: 8px 9px 5px;
+  background: #fff;
+  color: #262626;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.map-country-search__continent span {
+  margin-left: 3px;
+  color: var(--mc-ink-60);
+  font-weight: 400;
 }
 
 .map-expand-hint {
