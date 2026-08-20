@@ -1,9 +1,17 @@
 import { useState } from 'react'
 import chevronIcon from '../assets/final/chevron.svg'
 
-export function ProductSelect({ products, value, onChange, variant = 'outline', disabled = false }) {
+export function ProductSelect({
+  products,
+  value,
+  onChange,
+  variant = 'outline',
+  disabled = false,
+  allowEmpty = false,
+}) {
   const [open, setOpen] = useState(false)
-  const selected = products.find((p) => p.id === value) ?? products[0]
+  const matchedProduct = products.find((p) => p.id === value)
+  const selected = matchedProduct ?? (allowEmpty ? null : products[0])
 
   return (
     <div className="product-select-wrap">
@@ -19,10 +27,14 @@ export function ProductSelect({ products, value, onChange, variant = 'outline', 
         disabled={disabled}
       >
         <span className="product-select__text">
-          <span className="product-select__alias">{selected?.alias}</span>
-          <span className="product-select__name">
-            {selected?.nameEn ?? selected?.name}
-          </span>
+          {selected ? (
+            <>
+              <span className="product-select__alias">{selected.alias}</span>
+              <span className="product-select__name">
+                {selected.nameEn ?? selected.name}
+              </span>
+            </>
+          ) : null}
         </span>
         <img
           className="product-select__chevron"

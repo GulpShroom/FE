@@ -14,6 +14,7 @@ export const mapCountries = [
   { id: 'all', label: '전체' },
   { id: 'kr', label: '한국' },
   { id: 'jp', label: '일본' },
+  { id: 'es', label: '스페인' },
   { id: 'us', label: '미국' },
   { id: 'fr', label: '프랑스' },
   { id: 'it', label: '이탈리아' },

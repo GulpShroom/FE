@@ -37,11 +37,12 @@ export function ProfileProvider({ children }) {
       profile,
       setName: (name) => updateProfile((p) => ({ ...p, name })),
       setAvatarUrl: (avatarUrl) => updateProfile((p) => ({ ...p, avatarUrl })),
-      selectProfile: ({ userId, nickname, profileType }) => updateProfile((p) => ({
+      selectProfile: ({ userId, nickname, profileType, ownedCount }) => updateProfile((p) => ({
         ...p,
         id: userId,
         name: nickname || p.name,
         profileType,
+        ownedCount: ownedCount ?? p.ownedCount,
       })),
     }),
     [profile],
