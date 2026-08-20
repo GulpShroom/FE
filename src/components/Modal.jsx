@@ -9,12 +9,23 @@ export function Modal({
   onSecondary,
   danger = false,
   hideSecondary = false,
+  variant,
+  logoSrc,
 }) {
   if (!open) return null
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true">
-      <div className="modal-card">
+    <div
+      className={`modal-backdrop${variant ? ` modal-backdrop--${variant}` : ''}`}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div className={`modal-card${variant ? ` modal-card--${variant}` : ''}`}>
+        {logoSrc ? (
+          <div className="modal-card__logo">
+            <img src={logoSrc} alt="M·Carry" width={90} height={27} />
+          </div>
+        ) : null}
         {title ? <p className="modal-card__title">{title}</p> : null}
         {children ? <div className="modal-card__body">{children}</div> : null}
         <div className="modal-actions">
