@@ -1,64 +1,222 @@
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { AppShell } from '../../components/AppShell'
 import { Modal } from '../../components/Modal'
-import { products, resellPosts } from '../../data/mock'
+import {
+  deleteResell,
+  getResellDetail,
+  normalizeConditionGrade,
+} from '../../api/resells'
+import { loadResellSharedContents, resolveOwnedProductId } from '../../api/resellContent'
+import { completeTransfer, startTransfer } from '../../api/transfers'
+import { useProfile } from '../../context/ProfileContext'
 import previewImageIcon from '../../assets/final/resell-preview-image.svg'
 import checkCircleIcon from '../../assets/final/resell-check-circle.svg'
 import previewChevronIcon from '../../assets/final/resell-preview-chevron.svg'
 import resellModalLogo from '../../assets/final/resell-delete-logo.png'
 import planeIcon from '../../assets/final/progress-plane.png'
-import { getResellDetail } from '../../api/resells'
-import { useProfile } from '../../context/ProfileContext'
+
+function formatSummary(detail) {
+  const summary = detail?.summary
+  if (!summary) return '여정 요약 정보가 없습니다.'
+  return `${summary.generationCount ?? 0}명의 주인 / ${summary.cityCount ?? 0}개 도시 / ${summary.productAgeYears ?? 0}년 여정`
+}
+
+function verifyPct(detail) {
+  const ratio = detail?.summary?.verifyRatio
+  if (ratio == null || Number.isNaN(Number(ratio))) return 0
+  const value = Number(ratio)
+  return value <= 1 ? Math.round(value * 100) : Math.round(value)
+}
+
+function photoSlots(detail) {
+  const sorted = [...(detail?.photos ?? [])].sort(
+    (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0),
+  )
+  const slots = [null, null, null]
+  sorted.slice(0, 3).forEach((photo, index) => {
+    slots[index] = photo?.photoUrl || null
+  })
+  return slots
+}
+
+function conditionLabel(grade) {
+  return `상태 ${normalizeConditionGrade(grade)}급`
+}
 
 export default function ResellDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
   const { profile } = useProfile()
-  const userId = profile?.userId ?? profile?.id
-  const post = resellPosts.find((p) => p.id === id) ?? resellPosts[0]
-  const hasApiDetailId = /^\d+$/.test(String(id))
+  const userId = Number(profile.userId ?? profile.id)
+  const hasUserId = Number.isFinite(userId) && userId > 0
+
   const [detail, setDetail] = useState(null)
-  const [detailLoading, setDetailLoading] = useState(hasApiDetailId)
-  const [detailError, setDetailError] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(null)
   const [buyOpen, setBuyOpen] = useState(false)
   const [letterOpen, setLetterOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
-  const isBuyerHistory = location.state?.resellHistoryRole === 'buyer'
-  const isAuthorHistory = detail?.isAuthor || location.state?.resellHistoryRole === 'author'
-  const [purchased, setPurchased] = useState(post.purchased || isBuyerHistory)
+  const [actionError, setActionError] = useState(null)
+  const [buying, setBuying] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [purchaseComplete, setPurchaseComplete] = useState(false)
-  const isOtherListing = !post.mine && !purchased && !isAuthorHistory
-  const photos = post.photos ?? [null, null, null]
-  const selectedProduct = products.find((product) => product.id === post.productId) ?? products[0]
-  const buyerLetter = post.letter?.trim() ?? ''
-  const buyerCareTip = post.careTip?.trim() ?? ''
-  const canViewPrivateContent = isBuyerHistory || isAuthorHistory
-  const displayPrice = isAuthorHistory ? '150,000원' : post.price
-  const displaySummary = isAuthorHistory ? '3명의 주인 / 8개 도시 / 4년 여정' : post.summary
-  const displayVerifiedPct = isAuthorHistory ? 88 : post.verifiedPct
-  const officialName = detail?.officialName || selectedProduct.nameEn || selectedProduct.name
-  const sellerNickname = detail?.sellerNickname || '판매자 정보 없음'
+  const [transferContext, setTransferContext] = useState(null)
+  const [productId, setProductId] = useState(null)
+  const [letterContent, setLetterContent] = useState('')
+  const [careTipContent, setCareTipContent] = useState('')
+
+  const historyRole = location.state?.resellHistoryRole
+  const isBuyerHistory = historyRole === 'buyer'
+  const isAuthorHistory = historyRole === 'author'
 
   useEffect(() => {
-    if (!hasApiDetailId) {
+    if (!id) {
+      setLoading(false)
+      setLoadError('리셀글 ID가 없습니다.')
       return undefined
     }
 
-    const controller = new AbortController()
+    let cancelled = false
+    setLoading(true)
+    setLoadError(null)
 
-    getResellDetail(id, { userId, signal: controller.signal })
-      .then(setDetail)
-      .catch((error) => {
-        if (error?.name !== 'CanceledError') {
-          setDetailError(error?.message || '리셀 상세 정보를 불러오지 못했습니다.')
+    getResellDetail(id, {
+      userId: hasUserId ? userId : undefined,
+    })
+      .then(async (data) => {
+        if (cancelled || !data) return
+        setDetail(data)
+
+        const canReadPrivate =
+          Boolean(data.isAuthor) || historyRole === 'author' || historyRole === 'buyer'
+        if (!canReadPrivate) {
+          setProductId(null)
+          setLetterContent('')
+          setCareTipContent('')
+          return
         }
-      })
-      .finally(() => setDetailLoading(false))
 
-    return () => controller.abort()
-  }, [hasApiDetailId, id, userId])
+        const resolvedProductId = await resolveOwnedProductId({
+          userId: hasUserId ? userId : undefined,
+          officialName: data.officialName,
+        })
+        if (cancelled) return
+        setProductId(resolvedProductId)
+
+        const shared = await loadResellSharedContents({
+          productId: resolvedProductId,
+          generation: data.summary?.generationCount,
+          wantLetter: Boolean(data.lockedJourney?.hasLetter),
+          wantCareTip: Boolean(data.lockedJourney?.hasCareTip),
+        })
+        if (cancelled) return
+        setLetterContent(shared.letter || '')
+        setCareTipContent(shared.careTip || '')
+      })
+      .catch((err) => {
+        if (!cancelled) setLoadError(err?.message || '리셀글 정보를 불러오지 못했습니다.')
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [id, userId, hasUserId, historyRole])
+
+  const isAuthor = Boolean(detail?.isAuthor || isAuthorHistory)
+  const isSold = detail?.postStatus && detail.postStatus !== 'active'
+  const purchased = Boolean(isBuyerHistory || purchaseComplete || (isSold && !isAuthor))
+  const photos = photoSlots(detail)
+  const displayPrice = detail
+    ? `${Number(detail.price || 0).toLocaleString('ko-KR')}원`
+    : '—'
+  const canBuy = !isAuthor && !purchased && detail?.postStatus === 'active'
+  const canViewPrivateContent = Boolean(isAuthor || purchased || isBuyerHistory)
+  const hasLetter = Boolean(detail?.lockedJourney?.hasLetter)
+  const hasCareTip = Boolean(detail?.lockedJourney?.hasCareTip)
+
+  const confirmBuy = async () => {
+    if (!hasUserId || !id || buying) return false
+    setBuying(true)
+    setActionError(null)
+    try {
+      const started = await startTransfer({
+        resellId: Number(id),
+        buyerId: userId,
+      })
+      const completed = await completeTransfer(started.transferId, {
+        newOwnerId: userId,
+      })
+      setTransferContext({
+        transferId: started.transferId,
+        productId: completed.productId ?? started.productId,
+        newGeneration: completed.newGeneration,
+        letterOpened: completed.letterOpened,
+      })
+      if (completed.productId ?? started.productId) {
+        setProductId(completed.productId ?? started.productId)
+        const shared = await loadResellSharedContents({
+          productId: completed.productId ?? started.productId,
+          generation: completed.newGeneration,
+          wantLetter: true,
+          wantCareTip: true,
+        })
+        setLetterContent(shared.letter || '')
+        setCareTipContent(shared.careTip || '')
+      }
+      setBuyOpen(false)
+      setPurchaseComplete(true)
+      return true
+    } catch (err) {
+      setActionError(err?.message || '구매/계승을 완료하지 못했습니다.')
+      return false
+    } finally {
+      setBuying(false)
+    }
+  }
+
+  const confirmDelete = async () => {
+    if (!hasUserId || !id || deleting) return false
+    setDeleting(true)
+    setActionError(null)
+    try {
+      await deleteResell(id, { sellerId: userId })
+      navigate('/resell?manage=1')
+      return true
+    } catch (err) {
+      setActionError(err?.message || '리셀글을 삭제하지 못했습니다.')
+      return false
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <AppShell showBack showNav={false}>
+        <div className="page form-stack page--resell-detail">
+          <p role="status">리셀글 정보를 불러오는 중입니다.</p>
+        </div>
+      </AppShell>
+    )
+  }
+
+  if (loadError || !detail) {
+    return (
+      <AppShell showBack showNav={false}>
+        <div className="page form-stack page--resell-detail">
+          <p role="alert">{loadError || '리셀글 정보를 불러오지 못했습니다.'}</p>
+          <button type="button" className="resell-next" onClick={() => navigate('/resell')}>
+            목록으로
+          </button>
+        </div>
+      </AppShell>
+    )
+  }
 
   if (purchaseComplete) {
     return (
@@ -79,7 +237,16 @@ export default function ResellDetailPage() {
           <button
             type="button"
             className="resell-purchase-complete__confirm"
-            onClick={() => navigate(`/resell/${post.id}/passport`)}
+            onClick={() =>
+              navigate(`/resell/${id}/passport`, {
+                state: {
+                  productId: transferContext?.productId || productId,
+                  transferId: transferContext?.transferId,
+                  newGeneration: transferContext?.newGeneration,
+                  fromPurchase: true,
+                },
+              })
+            }
           >
             확인
           </button>
@@ -91,35 +258,30 @@ export default function ResellDetailPage() {
   return (
     <AppShell showBack showNav={false}>
       <div
-        className={`page form-stack page--resell-detail${isOtherListing ? ' page--resell-detail-other' : ''}${isBuyerHistory ? ' page--resell-detail-buyer' : ''}${isAuthorHistory ? ' page--resell-detail-author' : ''}`}
+        className={`page form-stack page--resell-detail${canBuy ? ' page--resell-detail-other' : ''}${isBuyerHistory ? ' page--resell-detail-buyer' : ''}${isAuthor ? ' page--resell-detail-author' : ''}`}
       >
         <h1 className="resell-create__title">서사 프리뷰</h1>
 
-        {detailLoading ? <p className="form-help" role="status">상품 정보를 불러오는 중입니다.</p> : null}
-        {detailError ? <p className="form-error" role="alert">{detailError}</p> : null}
-
-        <article
-          className={`resell-preview${isBuyerHistory && buyerLetter ? ' has-letter' : ''}${isBuyerHistory && buyerCareTip ? ' has-care' : ''}`}
-        >
-          <div className="resell-preview__overview resell-overview" aria-label={`${officialName} 제품, 판매자 ${sellerNickname}`}>
+        <article className="resell-preview">
+          <div
+            className="resell-preview__overview resell-overview"
+            aria-label={`${detail.officialName || '제품'} 리셀글`}
+          >
             <div className="resell-overview__inner">
-              <p className="resell-overview__eyebrow">Product Name</p>
-              <p className="resell-overview__alias">{officialName}</p>
+              <p className="resell-overview__eyebrow">Brand Name</p>
+              <p className="resell-overview__alias">{detail.officialName || '—'}</p>
               <div className="resell-overview__meta">
-                <span>판매자 {sellerNickname}</span>
-                <span>{selectedProduct.journeyCount}개의 여정 기록</span>
-              </div>
-              {selectedProduct.stamp ? (
-                <span className="resell-overview__stamp-box" aria-hidden="true">
-                  <img className="resell-overview__stamp" src={selectedProduct.stamp} alt="" />
+                <span>
+                  {detail.summary?.isAuthenticated ? '정품 인증 완료' : '인증 정보 없음'}
                 </span>
-              ) : null}
-              <p className="resell-overview__score">{selectedProduct.overallScore}</p>
+                <span>{detail.summary?.journeyCount ?? 0}개의 여정 기록</span>
+              </div>
+              <p className="resell-overview__score">{detail.summary?.provenanceScore ?? 0}</p>
             </div>
           </div>
 
           <div className="resell-preview__photos">
-            {photos.slice(0, 3).map((photo, i) => (
+            {photos.map((photo, i) => (
               <div key={i} className="resell-preview__photo">
                 {photo ? (
                   <img className="resell-preview__uploaded-photo" src={photo} alt="" />
@@ -132,53 +294,60 @@ export default function ResellDetailPage() {
 
           <div className="resell-preview__price-row">
             <p className="resell-preview__price">{displayPrice}</p>
-            <span className="resell-preview__badge">상태 A급</span>
+            <span className="resell-preview__badge">{conditionLabel(detail.conditionGrade)}</span>
           </div>
 
           <div className="resell-preview__stats">
             <p className="resell-preview__stat">
               <img src={checkCircleIcon} alt="" width={14} height={14} />
-              {displaySummary}
+              {formatSummary(detail)}
             </p>
             <p className="resell-preview__stat">
               <img src={checkCircleIcon} alt="" width={14} height={14} />
-              전체 여정의 {displayVerifiedPct}% 검증 완료
+              전체 여정의 {verifyPct(detail)}% 검증 완료
             </p>
           </div>
 
-          {purchased ? (
-            <p className="resell-detail__bought">구매가 완료된 상품입니다!</p>
-          ) : null}
+          {purchased ? <p className="resell-detail__bought">구매가 완료된 상품입니다!</p> : null}
 
-          {canViewPrivateContent && buyerLetter ? (
-            <div className="resell-preview__row resell-preview__row--letter">
-              <span>Letter</span>
-              <p>{buyerLetter}</p>
-            </div>
-          ) : !canViewPrivateContent ? (
-            <div className="resell-preview__row resell-preview__row--letter">
-              Letter (구매자에게만 공개됩니다.)
-            </div>
-          ) : null}
-          {canViewPrivateContent && !buyerCareTip ? null : (
-            <div className="resell-preview__row resell-preview__row--care">
-              {canViewPrivateContent ? (
-                <>
-                  <span>Care Tips</span>
-                  <p>{buyerCareTip}</p>
-                </>
-              ) : purchased ? post.careTip || 'Care Tips' : 'Care Tips'}
-            </div>
-          )}
+          <div className="resell-preview__row resell-preview__row--letter">
+            {canViewPrivateContent && letterContent ? (
+              <>
+                <span>Letter</span>
+                <p>{letterContent}</p>
+              </>
+            ) : canViewPrivateContent && hasLetter ? (
+              <>
+                <span>Letter</span>
+                <p>편지가 등록되어 있습니다. 구매·계승 완료 후 새 주인에게 공개됩니다.</p>
+              </>
+            ) : (
+              'Letter (구매자에게만 공개됩니다.)'
+            )}
+          </div>
+
+          <div className="resell-preview__row resell-preview__row--care">
+            {canViewPrivateContent && careTipContent ? (
+              <>
+                <span>Care Tips</span>
+                <p>{careTipContent}</p>
+              </>
+            ) : canViewPrivateContent && hasCareTip ? (
+              <>
+                <span>Care Tips</span>
+                <p>등록된 케어팁을 불러오지 못했습니다.</p>
+              </>
+            ) : (
+              'Care Tips'
+            )}
+          </div>
+
           <button
             type="button"
             className="resell-preview__row resell-preview__row--btn resell-preview__row--journey"
             onClick={() =>
-              navigate(`/resell/${post.id}/journey`, {
-                state: {
-                  shareSelections: post.shareSelections,
-                  situationSelections: post.situationSelections,
-                },
+              navigate(`/resell/${id}/journey`, {
+                state: { fromDetail: true },
               })
             }
           >
@@ -189,51 +358,70 @@ export default function ResellDetailPage() {
 
         {isBuyerHistory ? (
           <div className="resell-detail__completed">구매가 완료된 상품입니다!</div>
-        ) : purchased && !post.mine ? (
+        ) : purchased && !isAuthor ? (
           <button type="button" className="resell-next" onClick={() => setLetterOpen(true)}>
             봉인된 편지 열기
           </button>
         ) : null}
 
-        {post.mine || isAuthorHistory ? (
+        {isAuthor ? (
           <div className="resell-dual">
-            <button type="button" className="resell-dual__btn" onClick={() => setDeleteOpen(true)}>
+            <button
+              type="button"
+              className="resell-dual__btn"
+              onClick={() => {
+                setActionError(null)
+                setDeleteOpen(true)
+              }}
+            >
               삭제하기
             </button>
             <button
               type="button"
               className="resell-dual__btn"
-              onClick={() => navigate(`/resell/${isAuthorHistory ? id : post.id}/edit`)}
+              onClick={() => navigate(`/resell/${id}/edit`)}
             >
               수정하기
             </button>
           </div>
-        ) : !purchased ? (
-          <button type="button" className="resell-next" onClick={() => setBuyOpen(true)}>
+        ) : canBuy ? (
+          <button
+            type="button"
+            className="resell-next"
+            onClick={() => {
+              setActionError(null)
+              setBuyOpen(true)
+            }}
+          >
             구매/계승하기
           </button>
+        ) : null}
+
+        {actionError && !buyOpen && !deleteOpen ? (
+          <p role="alert" className="resell-empty__desc">
+            {actionError}
+          </p>
         ) : null}
       </div>
 
       <Modal
         open={buyOpen}
-        secondaryLabel="네"
-        primaryLabel="아니요"
+        secondaryLabel="아니요"
+        primaryLabel={buying ? '진행 중...' : '네'}
         variant="resell-buy"
         logoSrc={resellModalLogo}
-        onSecondary={() => {
-          setPurchased(true)
-          setBuyOpen(false)
-          setPurchaseComplete(true)
+        onPrimary={confirmBuy}
+        onSecondary={() => setBuyOpen(false)}
+        onClose={() => {
+          if (!buying) setBuyOpen(false)
         }}
-        onPrimary={() => setBuyOpen(false)}
-        onClose={() => setBuyOpen(false)}
       >
         <p>
           구매하면 소유권이 이전되고
           <br />
           봉인된 편지가 열립니다. 진행할까요?
         </p>
+        {actionError ? <p role="alert">{actionError}</p> : null}
       </Modal>
 
       <Modal
@@ -244,21 +432,25 @@ export default function ResellDetailPage() {
         onPrimary={() => setLetterOpen(false)}
         onClose={() => setLetterOpen(false)}
       >
-        <p>{post.letter}</p>
-        <p style={{ marginTop: 10 }}>{post.careTip}</p>
+        <p>{letterContent || '공개된 편지가 없습니다.'}</p>
+        {careTipContent ? <p style={{ marginTop: 10 }}>{careTipContent}</p> : null}
       </Modal>
 
       <Modal
         open={deleteOpen}
-        secondaryLabel="네"
-        primaryLabel="아니요"
+        secondaryLabel="아니요"
+        primaryLabel={deleting ? '삭제 중...' : '네'}
         variant="resell-buy"
         logoSrc={resellModalLogo}
-        onSecondary={() => navigate('/resell')}
-        onPrimary={() => setDeleteOpen(false)}
-        onClose={() => setDeleteOpen(false)}
+        danger
+        onPrimary={confirmDelete}
+        onSecondary={() => setDeleteOpen(false)}
+        onClose={() => {
+          if (!deleting) setDeleteOpen(false)
+        }}
       >
         <p>작성한 리셀 정보를 삭제하시겠습니까?</p>
+        {actionError ? <p role="alert">{actionError}</p> : null}
       </Modal>
     </AppShell>
   )
