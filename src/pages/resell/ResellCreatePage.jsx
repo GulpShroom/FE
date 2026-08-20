@@ -12,6 +12,9 @@ import messageHelperMark from '../../assets/final/resell-message-connector.svg'
 import previewImageIcon from '../../assets/final/resell-preview-image.svg'
 import previewChevronIcon from '../../assets/final/resell-preview-chevron.svg'
 import { resellProductDummies } from '../../data/resellDummies'
+import { createResell, uploadResellPhoto } from '../../api/resells'
+import { getMyProducts, getProductSummary } from '../../api/dashboard'
+import { useProfile } from '../../context/ProfileContext'
 
 const steps = [
   'select',
@@ -70,6 +73,8 @@ const SHARE_JOURNEYS = [
 export default function ResellCreatePage() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { profile } = useProfile()
+  const sellerId = profile?.userId ?? profile?.id ?? currentUser.id
   const returnStep = steps.indexOf(location.state?.resellStep)
   const [step, setStep] = useState(returnStep >= 0 ? returnStep : 0)
   const [productId, setProductId] = useState(
@@ -91,11 +96,32 @@ export default function ResellCreatePage() {
   const [situationSelections, setSituationSelections] = useState(
     location.state?.resellSituationSelections ?? [],
   )
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
+  const [ownedProducts, setOwnedProducts] = useState([])
+  const [productsLoading, setProductsLoading] = useState(true)
+  const [productsError, setProductsError] = useState('')
+  const [infoError, setInfoError] = useState('')
+  const sellerName = profile?.nickname || profile?.name || profile?.handle || currentUser.handle
 
-  const product = products.find((p) => p.id === productId) ?? products[0]
-  const productIndex = products.findIndex((p) => p.id === productId)
-  const selectProductIndex = Math.max(0, Math.min(productIndex, resellProductDummies.length - 1))
-  const selectProductDetails = resellProductDummies[selectProductIndex]
+  const productOptions = ownedProducts
+  const selectProductIndex = Math.max(
+    0,
+    productOptions.findIndex((item) => String(item.productId) === String(productId)),
+  )
+  const selectProductDetails = productOptions[selectProductIndex] ?? resellProductDummies[0]
+  const mockProduct = products.find((item) => (
+    String(item.id).replace(/^p/i, '') === String(productId).replace(/^p/i, '')
+  )) ?? products[0]
+  const product = {
+    ...mockProduct,
+    id: selectProductDetails.productId ?? mockProduct.id,
+    alias: selectProductDetails.alias ?? mockProduct.alias,
+    name: selectProductDetails.officialName ?? mockProduct.name,
+    nameEn: selectProductDetails.officialName ?? mockProduct.nameEn,
+    journeyCount: selectProductDetails.journeyCount ?? mockProduct.journeyCount,
+    overallScore: selectProductDetails.score ?? mockProduct.overallScore,
+  }
   const key = steps[step]
   const isContentEdit = Boolean(
     location.state?.resellEditReturn && ['letter', 'care', 'share'].includes(key),
@@ -104,6 +130,49 @@ export default function ResellCreatePage() {
   const fillPct = `${(stepOf6 / 6) * 100}%`
   const conditionLabel =
     CONDITIONS.find((c) => c.id === condition)?.label.replace(/급.*/, '급') ?? 'A급'
+
+  useEffect(() => {
+    let cancelled = false
+
+    getMyProducts(sellerId)
+      .then(async (data) => {
+        const items = Array.isArray(data) ? data : data?.products ?? []
+        const summaries = await Promise.all(items.map((item) => (
+          getProductSummary(item.productId ?? item.id).catch(() => ({}))
+        )))
+        if (cancelled) return
+
+        const nextProducts = items.map((item, index) => {
+          const summary = summaries[index]
+          return {
+            productId: item.productId ?? item.id,
+            alias: item.nickname || summary.nickname || item.officialName || '이름 없는 제품',
+            officialName: item.officialName || summary.officialName || '',
+            journeyCount: summary.journeyCount ?? item.journeyCount ?? 0,
+            score: summary.provenanceScore ?? item.provenanceScore ?? 0,
+            authenticity: (summary.isAuthenticated ?? item.isAuthenticated) === false
+              ? '정품 인증 확인 중'
+              : '정품 인증 완료',
+            previousOwnerCount: Math.max((summary.keeperCount ?? item.generation ?? 1) - 1, 0),
+          }
+        })
+        setOwnedProducts(nextProducts)
+        setProductsError('')
+        if (nextProducts.length > 0 && !location.state?.resellProductId) {
+          setProductId(nextProducts[0].productId)
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) setProductsError(error?.message || '보유 제품을 불러오지 못했습니다.')
+      })
+      .finally(() => {
+        if (!cancelled) setProductsLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [location.state?.resellProductId, sellerId])
 
   useEffect(() => {
     const resetScroll = () => {
@@ -142,6 +211,7 @@ export default function ResellCreatePage() {
     if (!file) return
 
     const photo = { file, url: URL.createObjectURL(file) }
+    setInfoError('')
     setPhotos((previous) =>
       previous.map((item, index) => (index === photoSlot ? photo : item)),
     )
@@ -183,6 +253,51 @@ export default function ResellCreatePage() {
       return
     }
     setStep((s) => skipAdjust(s + 1, 1))
+  }
+  const nextFromInfo = () => {
+    const numericPrice = Number(String(price).replace(/,/g, ''))
+    if (!photos.some(Boolean)) {
+      setInfoError('실물 사진을 1장 이상 등록해 주세요.')
+      return
+    }
+    if (!Number.isSafeInteger(numericPrice) || numericPrice <= 0) {
+      setInfoError('올바른 판매 가격을 입력해 주세요.')
+      return
+    }
+    setInfoError('')
+    next()
+  }
+  const submitResell = async () => {
+    if (isSubmitting) return
+
+    const numericPrice = Number(String(price).replace(/,/g, ''))
+    const photoFiles = photos.filter(Boolean).map((photo) => photo.file)
+
+    if (photoFiles.length === 0 || !Number.isSafeInteger(numericPrice) || numericPrice <= 0) {
+      setSubmitError('사진을 1장 이상 등록하고 올바른 판매 가격을 입력해 주세요.')
+      return
+    }
+
+    setIsSubmitting(true)
+    setSubmitError('')
+
+    try {
+      const photoUrls = await Promise.all(photoFiles.map(uploadResellPhoto))
+      await createResell({
+        productId,
+        sellerId,
+        price: numericPrice,
+        conditionGrade: condition,
+        letterShared: includeLetter,
+        caretipShared: includeCare,
+        photoUrls,
+      })
+      setStep(steps.indexOf('done'))
+    } catch (error) {
+      setSubmitError(error?.message || '리셀글을 등록하지 못했습니다. 잠시 후 다시 시도해 주세요.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
   const generateAiLetter = () => {
     // 실제 AI API 연동 시 이 함수의 본문만 API 호출로 교체합니다.
@@ -261,8 +376,9 @@ export default function ResellCreatePage() {
                 type="button"
                 className="resell-overview"
                 onClick={() => {
-                  const nextId = resellProductDummies[
-                    (selectProductIndex + 1) % resellProductDummies.length
+                  if (productOptions.length === 0) return
+                  const nextId = productOptions[
+                    (selectProductIndex + 1) % productOptions.length
                   ]?.productId
                   if (nextId) selectProduct(nextId)
                 }}
@@ -271,7 +387,7 @@ export default function ResellCreatePage() {
                   <p className="resell-overview__eyebrow">Journey Overview</p>
                   <p className="resell-overview__alias">{selectProductDetails.alias}</p>
                   <div className="resell-overview__meta">
-                    <span>정품 인증 완료</span>
+                    <span>{selectProductDetails.authenticity ?? '정품 인증 완료'}</span>
                     <span>{selectProductDetails.journeyCount}개의 여정 기록</span>
                   </div>
                   <span className="resell-overview__stamp-box" aria-hidden="true">
@@ -289,16 +405,16 @@ export default function ResellCreatePage() {
             </div>
 
             <div className="passport-rail" aria-label="제품 선택">
-              {resellProductDummies.map((dummy, i) =>
+              {productOptions.map((dummy, i) =>
                 i === selectProductIndex ? (
                   <span
-                    key={dummy.id}
+                    key={dummy.productId ?? dummy.id}
                     className="passport-rail__pill"
                     style={{ background: 'var(--mc-green)' }}
                   />
                 ) : (
                   <button
-                    key={dummy.id}
+                    key={dummy.productId ?? dummy.id}
                     type="button"
                     className="passport-rail__dot"
                     style={{ background: 'var(--mc-green)', border: 0, padding: 0 }}
@@ -309,6 +425,13 @@ export default function ResellCreatePage() {
               )}
             </div>
 
+            {productsLoading ? (
+              <p className="form-help" role="status">보유 제품을 불러오는 중입니다.</p>
+            ) : null}
+            {productsError ? (
+              <p className="form-error" role="alert">{productsError}</p>
+            ) : null}
+
             <div className="resell-inherit">
               <p className="resell-inherit__label">계승 정보</p>
               <div className="resell-inherit__box">
@@ -317,7 +440,16 @@ export default function ResellCreatePage() {
               </div>
             </div>
 
-            <button type="button" className="resell-next" onClick={next}>
+            {!productsLoading && !productsError && productOptions.length === 0 ? (
+              <p className="form-error" role="status">리셀로 등록할 보유 제품이 없습니다.</p>
+            ) : null}
+
+            <button
+              type="button"
+              className="resell-next"
+              onClick={next}
+              disabled={productsLoading || Boolean(productsError) || productOptions.length === 0}
+            >
               다음
             </button>
           </>
@@ -366,7 +498,7 @@ export default function ResellCreatePage() {
               </div>
               <div className="resell-info-card__row">
                 <span>판매자</span>
-                <strong>{currentUser.handle}</strong>
+                <strong>{sellerName}</strong>
               </div>
             </div>
 
@@ -438,7 +570,10 @@ export default function ResellCreatePage() {
               <div className="resell-price">
                 <input
                   value={price}
-                  onChange={(e) => setPrice(e.target.value)}
+                  onChange={(e) => {
+                    setPrice(e.target.value.replace(/[^0-9,]/g, ''))
+                    setInfoError('')
+                  }}
                   placeholder="가격을 입력해주세요"
                   inputMode="numeric"
                 />
@@ -446,7 +581,10 @@ export default function ResellCreatePage() {
               </div>
             </div>
 
-            <button type="button" className="resell-next" onClick={next}>
+            {infoError ? (
+              <p className="form-error" role="alert">{infoError}</p>
+            ) : null}
+            <button type="button" className="resell-next" onClick={nextFromInfo}>
               다음
             </button>
           </>
@@ -866,8 +1004,16 @@ export default function ResellCreatePage() {
               ) : null}
             </article>
 
-            <button type="button" className="resell-next" onClick={next}>
-              등록하기
+            {submitError ? (
+              <p className="form-error" role="alert">{submitError}</p>
+            ) : null}
+            <button
+              type="button"
+              className="resell-next"
+              onClick={submitResell}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? '등록 중...' : '등록하기'}
             </button>
           </>
         ) : null}

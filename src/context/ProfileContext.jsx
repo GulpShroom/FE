@@ -7,6 +7,7 @@ const defaultProfile = {
   id: seedUser.id,
   userId: seedUser.id,
   name: seedUser.name,
+  nickname: seedUser.name,
   handle: seedUser.handle,
   ownedCount: seedUser.ownedCount,
   avatarUrl: null,
@@ -21,7 +22,13 @@ export function ProfileProvider({ children }) {
         const parsed = JSON.parse(saved)
         if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
           const userId = parsed.userId ?? parsed.id ?? defaultProfile.userId
-          return { ...defaultProfile, ...parsed, id: userId, userId }
+          return {
+            ...defaultProfile,
+            ...parsed,
+            id: userId,
+            userId,
+            nickname: parsed.nickname ?? parsed.name ?? defaultProfile.nickname,
+          }
         }
         window.sessionStorage.removeItem('mcarry-profile')
       } catch {
@@ -56,6 +63,7 @@ export function ProfileProvider({ children }) {
           id: userId,
           userId,
           name: selected.nickname || profile.name,
+          nickname: selected.nickname || profile.nickname || profile.name,
           profileType: selected.profileType,
           ownedCount: selected.ownedCount ?? profile.ownedCount,
         }

@@ -1,5 +1,5 @@
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AppShell } from '../../components/AppShell'
 import { Modal } from '../../components/Modal'
 import { products, resellPosts } from '../../data/mock'
@@ -8,17 +8,25 @@ import checkCircleIcon from '../../assets/final/resell-check-circle.svg'
 import previewChevronIcon from '../../assets/final/resell-preview-chevron.svg'
 import resellModalLogo from '../../assets/final/resell-delete-logo.png'
 import planeIcon from '../../assets/final/progress-plane.png'
+import { getResellDetail } from '../../api/resells'
+import { useProfile } from '../../context/ProfileContext'
 
 export default function ResellDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
+  const { profile } = useProfile()
+  const userId = profile?.userId ?? profile?.id
   const post = resellPosts.find((p) => p.id === id) ?? resellPosts[0]
+  const hasApiDetailId = /^\d+$/.test(String(id))
+  const [detail, setDetail] = useState(null)
+  const [detailLoading, setDetailLoading] = useState(hasApiDetailId)
+  const [detailError, setDetailError] = useState('')
   const [buyOpen, setBuyOpen] = useState(false)
   const [letterOpen, setLetterOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const isBuyerHistory = location.state?.resellHistoryRole === 'buyer'
-  const isAuthorHistory = location.state?.resellHistoryRole === 'author'
+  const isAuthorHistory = detail?.isAuthor || location.state?.resellHistoryRole === 'author'
   const [purchased, setPurchased] = useState(post.purchased || isBuyerHistory)
   const [purchaseComplete, setPurchaseComplete] = useState(false)
   const isOtherListing = !post.mine && !purchased && !isAuthorHistory
@@ -30,6 +38,27 @@ export default function ResellDetailPage() {
   const displayPrice = isAuthorHistory ? '150,000원' : post.price
   const displaySummary = isAuthorHistory ? '3명의 주인 / 8개 도시 / 4년 여정' : post.summary
   const displayVerifiedPct = isAuthorHistory ? 88 : post.verifiedPct
+  const officialName = detail?.officialName || selectedProduct.nameEn || selectedProduct.name
+  const sellerNickname = detail?.sellerNickname || '판매자 정보 없음'
+
+  useEffect(() => {
+    if (!hasApiDetailId) {
+      return undefined
+    }
+
+    const controller = new AbortController()
+
+    getResellDetail(id, { userId, signal: controller.signal })
+      .then(setDetail)
+      .catch((error) => {
+        if (error?.name !== 'CanceledError') {
+          setDetailError(error?.message || '리셀 상세 정보를 불러오지 못했습니다.')
+        }
+      })
+      .finally(() => setDetailLoading(false))
+
+    return () => controller.abort()
+  }, [hasApiDetailId, id, userId])
 
   if (purchaseComplete) {
     return (
@@ -66,15 +95,18 @@ export default function ResellDetailPage() {
       >
         <h1 className="resell-create__title">서사 프리뷰</h1>
 
+        {detailLoading ? <p className="form-help" role="status">상품 정보를 불러오는 중입니다.</p> : null}
+        {detailError ? <p className="form-error" role="alert">{detailError}</p> : null}
+
         <article
           className={`resell-preview${isBuyerHistory && buyerLetter ? ' has-letter' : ''}${isBuyerHistory && buyerCareTip ? ' has-care' : ''}`}
         >
-          <div className="resell-preview__overview resell-overview" aria-label={`${selectedProduct.alias} 제품`}>
+          <div className="resell-preview__overview resell-overview" aria-label={`${officialName} 제품, 판매자 ${sellerNickname}`}>
             <div className="resell-overview__inner">
-              <p className="resell-overview__eyebrow">Brand Name</p>
-              <p className="resell-overview__alias">{selectedProduct.alias}</p>
+              <p className="resell-overview__eyebrow">Product Name</p>
+              <p className="resell-overview__alias">{officialName}</p>
               <div className="resell-overview__meta">
-                <span>{selectedProduct.authenticity}</span>
+                <span>판매자 {sellerNickname}</span>
                 <span>{selectedProduct.journeyCount}개의 여정 기록</span>
               </div>
               {selectedProduct.stamp ? (

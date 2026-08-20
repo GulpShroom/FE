@@ -1,5 +1,5 @@
 import type { AxiosRequestConfig } from 'axios'
-import { api } from './client'
+import { api, toApiId } from './client'
 
 export interface ResellSummary {
   resellId: number
@@ -20,6 +20,55 @@ export interface ApiResponseResellListResponse {
   message: string
   data: ResellListResponse
   timestamp: string
+}
+
+export interface ResellSaveRequest {
+  productId: number
+  sellerId: number
+  price: number
+  conditionGrade: string
+  letterShared: boolean
+  caretipShared: boolean
+  photoUrls: string[]
+}
+
+export interface ResellSaveResponse {
+  productId: number
+  price: number
+  postStatus: string
+  resellId: number
+}
+
+export interface ResellDetailResponse {
+  resellId: number
+  officialName: string
+  sellerNickname: string | null
+  isAuthor: boolean
+  price: number
+  conditionGrade: string | null
+  postStatus: string
+  photos: Array<{
+    photoId: number
+    photoUrl: string
+    sortOrder: number
+  }>
+  summary: {
+    journeyCount: number
+    generationCount: number
+    countryCount: number
+    cityCount: number
+    isAuthenticated: boolean
+    productAgeYears: number
+    provenanceScore: number | null
+    verifyRatio: number
+  }
+  lockedJourney: {
+    cities: string[]
+    countryCount: number
+    cityCount: number
+    hasLetter: boolean
+    hasCareTip: boolean
+  }
 }
 
 export type ResellRole = 'seller' | 'buyer'
@@ -98,4 +147,38 @@ export function getMyResellHistory(
   config?: Pick<AxiosRequestConfig, 'signal'>,
 ): Promise<ResellListResponse> {
   return getResellList({ userId, role, page, size }, config)
+}
+
+/** GET /api/v1/mcarry/resells/{resellId}?userId={userId} */
+export function getResellDetail(
+  resellId: string | number,
+  { userId, signal }: { userId?: number; signal?: AbortSignal } = {},
+): Promise<ResellDetailResponse> {
+  return api.get(`${RESELLS_ENDPOINT}/${toApiId(resellId)}`, {
+    signal,
+    params: userId != null ? { userId } : undefined,
+  })
+}
+
+/** POST /api/v1/mcarry/files */
+export async function uploadResellPhoto(file: File): Promise<string> {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const result = await api.post<FormData, { url: string }>('/files', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+
+  if (!result?.url) throw new Error('업로드된 사진 URL을 받지 못했습니다.')
+  return result.url
+}
+
+/** POST /api/v1/mcarry/resells */
+export function createResell(
+  body: Omit<ResellSaveRequest, 'productId'> & { productId: string | number },
+): Promise<ResellSaveResponse> {
+  return api.post(RESELLS_ENDPOINT, {
+    ...body,
+    productId: toApiId(body.productId),
+  })
 }
