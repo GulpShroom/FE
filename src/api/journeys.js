@@ -161,7 +161,7 @@ export function updateJourney(journeyId, body) {
 /** DELETE /journeys/{journeyId} */
 export function deleteJourney(journeyId, { userId } = {}) {
   return api.delete(`/journeys/${toApiId(journeyId)}`, {
-    params: { userId },
+    params: { userId: toApiId(userId) },
   })
 }
 
