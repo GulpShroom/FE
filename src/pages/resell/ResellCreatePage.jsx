@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { AppShell } from '../../components/AppShell'
+import { Modal } from '../../components/Modal'
 import { currentUser, products } from '../../data/mock'
 import planeTip from '../../assets/final/progress-plane.png'
 import cameraIcon from '../../assets/final/camera.svg'
@@ -10,9 +11,11 @@ import messageHelperRing from '../../assets/final/resell-message-helper.svg'
 import messageHelperMark from '../../assets/final/resell-message-connector.svg'
 import previewImageIcon from '../../assets/final/resell-preview-image.svg'
 import previewChevronIcon from '../../assets/final/resell-preview-chevron.svg'
+import resellModalLogo from '../../assets/final/resell-delete-logo.png'
 import { resellProductDummies } from '../../data/resellDummies'
 import { createResell, uploadResellPhoto } from '../../api/resells'
 import { getMyProducts, getProductSummary } from '../../api/dashboard'
+import { getProductJourneys, mapProductJourney } from '../../api/journeys'
 import { useProfile } from '../../context/ProfileContext'
 import { createCareTip, createLetterDraft, getProductDiagnoses } from '../../api/my'
 
@@ -122,6 +125,11 @@ export default function ResellCreatePage() {
   const [diagnoses, setDiagnoses] = useState([])
   const [diagnosesLoaded, setDiagnosesLoaded] = useState(false)
   const [infoError, setInfoError] = useState('')
+  const [inheritPreviewOpen, setInheritPreviewOpen] = useState(false)
+  const [inheritPreviewLoading, setInheritPreviewLoading] = useState(false)
+  const [inheritPreviewError, setInheritPreviewError] = useState(null)
+  const [inheritPreviewJourneys, setInheritPreviewJourneys] = useState([])
+  const [journeyTotalCount, setJourneyTotalCount] = useState(null)
   const sellerName = profile?.nickname || profile?.name || profile?.handle || currentUser.handle
 
   const productOptions = ownedProducts
@@ -278,6 +286,41 @@ export default function ResellCreatePage() {
     else setCondition('S')
   }
 
+  const openInheritPreview = async () => {
+    const userId = profile?.userId ?? profile?.id ?? sellerId
+    if (!product?.id) {
+      setInheritPreviewError('미리볼 제품을 먼저 선택해 주세요.')
+      setInheritPreviewJourneys([])
+      setInheritPreviewOpen(true)
+      return
+    }
+
+    setInheritPreviewOpen(true)
+    setInheritPreviewLoading(true)
+    setInheritPreviewError(null)
+
+    try {
+      const data = await getProductJourneys(product.id, {
+        userId,
+        sort: 'date',
+        page: 0,
+        size: 50,
+      })
+      const rows = (data?.journeys ?? []).filter(
+        (item) => (item.ownershipStatus || 'owning') === 'owning',
+      )
+      setJourneyTotalCount(rows.length)
+      setInheritPreviewJourneys(
+        rows.slice(0, 3).map((item) => mapProductJourney(item, product)),
+      )
+    } catch (err) {
+      setInheritPreviewJourneys([])
+      setInheritPreviewError(err?.message || '계승 여정 미리보기를 불러오지 못했습니다.')
+    } finally {
+      setInheritPreviewLoading(false)
+    }
+  }
+
   const skipAdjust = (from, dir) => {
     let n = from
     while (n >= 0 && n < steps.length) {
@@ -388,7 +431,7 @@ export default function ResellCreatePage() {
       return
     }
 
-    createLetterDraft(transferId, { userId: sellerId })
+    createLetterDraft(transferId, { authorId: sellerId, userId: sellerId })
       .then((response) => {
         const draft = response?.draftText ?? response?.content ?? response?.text
         setLetter(String(draft || AI_LETTER).slice(0, 200))
@@ -865,11 +908,17 @@ export default function ResellCreatePage() {
 
             <div className="resell-share-card">
               <p>
-                등록하신 제품의 여정 기록 32개 중 AI가 선별한 핵심
+                등록하신 제품의 여정 기록{' '}
+                {journeyTotalCount != null ? journeyTotalCount : product?.journeyCount ?? '—'}
+                개 중 AI가 선별한 핵심
                 <br />
                 회고와 태그가 구매자에게 전달됩니다.
               </p>
-              <button type="button" className="resell-share-card__preview">
+              <button
+                type="button"
+                className="resell-share-card__preview"
+                onClick={openInheritPreview}
+              >
                 계승될 여정 미리보기
               </button>
             </div>
@@ -1235,6 +1284,47 @@ export default function ResellCreatePage() {
           </>
         ) : null}
       </div>
+
+      <Modal
+        open={inheritPreviewOpen}
+        title="계승될 여정 미리보기"
+        primaryLabel="확인"
+        hideSecondary
+        variant="resell-inherit-preview"
+        logoSrc={resellModalLogo}
+        onPrimary={() => setInheritPreviewOpen(false)}
+        onClose={() => setInheritPreviewOpen(false)}
+      >
+        {inheritPreviewLoading ? (
+          <p>여정 기록을 불러오는 중입니다.</p>
+        ) : inheritPreviewError ? (
+          <p role="alert">{inheritPreviewError}</p>
+        ) : inheritPreviewJourneys.length === 0 ? (
+          <p>미리볼 여정 기록이 없습니다.</p>
+        ) : (
+          <ul className="resell-inherit-preview-list">
+            {inheritPreviewJourneys.map((journey) => {
+              const tags = [journey.activity, journey.situation, journey.style].filter(Boolean)
+              return (
+                <li key={journey.id} className="resell-inherit-preview-item">
+                  <p className="resell-inherit-preview-item__recall">
+                    {journey.quote || '회고가 없습니다.'}
+                  </p>
+                  {tags.length > 0 ? (
+                    <div className="resell-inherit-preview-item__tags" aria-label="태그">
+                      {tags.map((tag) => (
+                        <span key={tag}>{tag}</span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="resell-inherit-preview-item__empty-tags">태그가 없습니다.</p>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </Modal>
     </AppShell>
   )
 }
