@@ -9,6 +9,7 @@ import { uploadFile } from '../../api/files'
 import {
   analyzeJourney,
   applyAnalyzeToForm,
+  hasExifFromAnalyze,
   buildCreateJourneyBody,
   buildUpdateJourneyBody,
   cityToUi,
@@ -59,10 +60,6 @@ const CITIES = {
   프랑스: ['파리', '모름'],
   이탈리아: ['밀라노', '로마', '모름'],
 }
-const ACTIVITIES = ['춤추기', '걷기', '식사', '여행']
-const SITUATIONS = ['시상식', '출근', '데이트', '일상']
-const STYLES = ['댄디', '캐주얼', '럭셔리', '스포티']
-
 const QUOTE_SAMPLES = {
   감성적: '“뉴욕의 밤, 그래미 시상식을 함께한 날”',
   담백하게: '“비 오는 출근길, 가방이 우산이 되어준 날”',
@@ -80,7 +77,7 @@ function MiniSelect({ value, options, onChange, width, showChevron = true, disab
 
   return (
     <label
-      className={`mini-select${showChevron ? '' : ' mini-select--plain'}`}
+      className={`mini-select${showChevron ? '' : ' mini-select--plain'}${disabled ? ' mini-select--locked' : ''}`}
       style={width ? { width } : undefined}
     >
       <select value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
@@ -90,7 +87,7 @@ function MiniSelect({ value, options, onChange, width, showChevron = true, disab
           </option>
         ))}
       </select>
-      {showChevron ? <img src={chevronIcon} alt="" width={15} height={15} /> : null}
+      {showChevron && !disabled ? <img src={chevronIcon} alt="" width={15} height={15} /> : null}
     </label>
   )
 }
@@ -112,9 +109,9 @@ function seedForm(existing, fallbackProductId) {
     month: existing ? monthToUi(existing.journeyMonth) : '5월',
     country,
     city: existing ? cityToUi(existing.city) : '서울',
-    activity: existing?.activity || '춤추기',
-    situation: existing?.situation || '시상식',
-    style: existing?.style || '댄디',
+    activity: existing?.activity || '',
+    situation: existing?.situation || '',
+    style: existing?.style || '',
     tagSources: existing?.tagSources ?? { ...DEFAULT_TAG_SOURCES },
     photoName: existing?.photoName || (existing?.photoUrl || existing?.image ? '현재 사진' : ''),
     photoUrl: existing?.photoUrl || '',
@@ -144,6 +141,7 @@ export default function JourneyFormPage() {
   const [analyzing, setAnalyzing] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState(null)
+  const [exifExtracted, setExifExtracted] = useState(false)
   const [form, setForm] = useState(() => seedForm(existing, seedProductId))
   const [initial, setInitial] = useState(form)
   const photoFileRef = useRef(null)
@@ -256,6 +254,31 @@ export default function JourneyFormPage() {
   }
 
   const onTone = (next) => {
+    setForm((f) => ({ ...f, tone: next }))
+
+    // 수정: 선택한 톤으로 회고 재생성
+    if (isEdit && id) {
+      setAnalyzing(true)
+      setError(null)
+      regenerateJourneyRecall(id, { userId: profile.id, tone: next })
+        .then((data) => {
+          setForm((f) => applyAnalyzeToForm({ ...f, tone: next }, data))
+        })
+        .catch((err) => {
+          setError(err.message || '회고 문장 재생성에 실패했습니다')
+        })
+        .finally(() => {
+          setAnalyzing(false)
+        })
+      return
+    }
+
+    // 작성: 사진이 있으면 analyze로 톤에 맞는 회고 생성
+    if (photoFileRef.current) {
+      void runAnalyze({ tone: next })
+      return
+    }
+
     setForm((f) => ({
       ...f,
       tone: next,
@@ -278,8 +301,10 @@ export default function JourneyFormPage() {
         photo,
       })
       setForm((f) => applyAnalyzeToForm(f, data))
+      setExifExtracted(hasExifFromAnalyze(data))
     } catch {
-      // 사진 업로드/저장과 분리 — analyze 실패해도 photoUrl 유지, 안내는 띄우지 않음
+      // EXIF/분석 실패 시 시점·지역 드롭다운을 열어 직접 입력 가능하게 함
+      setExifExtracted(false)
     } finally {
       setAnalyzing(false)
     }
@@ -305,7 +330,7 @@ export default function JourneyFormPage() {
 
     // 작성: 사진 + analyze API
     if (photoFileRef.current) {
-      void runAnalyze()
+      void runAnalyze({ tone: form.tone })
       return
     }
     setError('AI 큐레이터를 쓰려면 먼저 사진을 업로드해 주세요.')
@@ -324,6 +349,7 @@ export default function JourneyFormPage() {
 
     setUploading(true)
     setError(null)
+    setExifExtracted(false)
     setForm((f) => ({
       ...f,
       photoName: file.name,
@@ -530,12 +556,14 @@ export default function JourneyFormPage() {
                 options={yearOptions}
                 onChange={(v) => setField('year', v)}
                 width={75}
+                disabled={exifExtracted}
               />
               <MiniSelect
                 value={form.month}
                 options={MONTHS}
                 onChange={(v) => setField('month', v)}
                 width={75}
+                disabled={exifExtracted}
               />
             </div>
           </div>
@@ -553,12 +581,14 @@ export default function JourneyFormPage() {
                   }))
                 }}
                 width={75}
+                disabled={exifExtracted}
               />
               <MiniSelect
                 value={form.city}
                 options={cityOptions}
                 onChange={(v) => setField('city', v)}
                 width={75}
+                disabled={exifExtracted}
               />
             </div>
           </div>
@@ -567,30 +597,39 @@ export default function JourneyFormPage() {
         <div className="form-trio">
           <div className="form-trio__col">
             <p className="form-duo__label form-duo__label--solid">활동</p>
-            <MiniSelect
-              value={form.activity}
-              options={withTag(ACTIVITIES, form.activity)}
-              onChange={(v) => setTag('activity', v)}
-              showChevron={false}
-            />
+            <label className="mini-input">
+              <input
+                type="text"
+                value={form.activity}
+                placeholder="직접 입력"
+                aria-label="활동 태그"
+                onChange={(e) => setTag('activity', e.target.value)}
+              />
+            </label>
           </div>
           <div className="form-trio__col">
             <p className="form-duo__label form-duo__label--solid">상황</p>
-            <MiniSelect
-              value={form.situation}
-              options={withTag(SITUATIONS, form.situation)}
-              onChange={(v) => setTag('situation', v)}
-              showChevron={false}
-            />
+            <label className="mini-input">
+              <input
+                type="text"
+                value={form.situation}
+                placeholder="직접 입력"
+                aria-label="상황 태그"
+                onChange={(e) => setTag('situation', e.target.value)}
+              />
+            </label>
           </div>
           <div className="form-trio__col">
             <p className="form-duo__label form-duo__label--solid">스타일</p>
-            <MiniSelect
-              value={form.style}
-              options={withTag(STYLES, form.style)}
-              onChange={(v) => setTag('style', v)}
-              showChevron={false}
-            />
+            <label className="mini-input">
+              <input
+                type="text"
+                value={form.style}
+                placeholder="직접 입력"
+                aria-label="스타일 태그"
+                onChange={(e) => setTag('style', e.target.value)}
+              />
+            </label>
           </div>
         </div>
 
