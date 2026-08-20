@@ -625,7 +625,7 @@ img {
 .map-panel__body {
   position: relative;
   z-index: 0;
-  height: 210px;
+  height: 260px;
   margin: 0;
   overflow: hidden;
   background: #fff;
@@ -1532,23 +1532,7 @@ img {
 }
 
 .main-journey-add-button {
-  position: relative;
-  top: -3px;
-  flex: 0 0 auto;
-  width: calc(100% - 110px);
-  height: 54px;
-  margin: 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  border-radius: 15px;
-  background: rgb(255 215 136 / 0.58);
-  color: #262626;
-  font-family: var(--mc-serif);
-  font-size: 15px;
-  font-weight: 400;
-  letter-spacing: -0.2px;
+  display: none;
 }
 
 /* MY JOURNEYS list — Figma 808:1935 / 1119:278 */
@@ -2392,6 +2376,41 @@ img {
 
 .mini-select--plain select {
   padding: 0 4px;
+}
+
+.mini-input {
+  display: block;
+  height: 33.2px;
+  border: 0.6px solid var(--mc-green);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.mini-input input {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  text-align: center;
+  font-family: var(--mc-serif-light);
+  font-size: 13px;
+  letter-spacing: -0.13px;
+  padding: 0 6px;
+}
+
+.mini-input input::placeholder {
+  color: rgba(38, 38, 38, 0.35);
+}
+
+.mini-select select:disabled {
+  color: rgba(38, 38, 38, 0.55);
+  background: rgba(38, 38, 38, 0.04);
+  cursor: not-allowed;
+}
+
+.mini-select--locked {
+  pointer-events: none;
 }
 
 .memo-field {
@@ -9178,6 +9197,14 @@ a.ai-repair-cta {
   transform: translateX(-50%);
 }
 
+.modal-card--resell-buy .modal-actions:has(> button:only-child) {
+  left: auto;
+  right: 24px;
+  width: auto;
+  transform: none;
+  justify-content: flex-end;
+}
+
 .modal-card--resell-buy .modal-actions button {
   flex: 0 0 141px;
   width: 141px;
@@ -9191,6 +9218,142 @@ a.ai-repair-cta {
   font-size: 12px;
   line-height: 14.4px;
   letter-spacing: -0.12px;
+}
+
+/* Resell inherit journey preview — same chrome as resell-buy, taller body */
+.modal-backdrop--resell-inherit-preview {
+  padding: 20px;
+  background: rgba(38, 38, 38, 0.6);
+}
+
+.modal-card--resell-inherit-preview {
+  position: relative;
+  width: 335px;
+  max-width: none;
+  max-height: min(70vh, 520px);
+  padding: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  text-align: left;
+}
+
+.modal-card--resell-inherit-preview .modal-card__logo {
+  position: relative;
+  flex: 0 0 56px;
+  width: 100%;
+  height: 56px;
+  border-bottom: 0.5px solid rgba(38, 38, 38, 0.6);
+  box-sizing: border-box;
+}
+
+.modal-card--resell-inherit-preview .modal-card__logo img {
+  position: absolute;
+  left: 50%;
+  top: 19px;
+  width: 90px;
+  height: 27px;
+  max-width: none;
+  object-fit: cover;
+  transform: translateX(-50%);
+}
+
+.modal-card--resell-inherit-preview .modal-card__title {
+  margin: 0;
+  padding: 14px 20px 8px;
+  color: #262626;
+  font-family: var(--mc-serif);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 22px;
+  text-align: center;
+}
+
+.modal-card--resell-inherit-preview .modal-card__body {
+  flex: 1 1 auto;
+  margin: 0;
+  padding: 0 18px 12px;
+  overflow-y: auto;
+  color: #262626;
+  font-family: var(--mc-serif-light);
+  font-size: 14px;
+  line-height: 20px;
+  text-align: left;
+}
+
+.modal-card--resell-inherit-preview .modal-card__body > p {
+  margin: 8px 0 0;
+  text-align: center;
+}
+
+.modal-card--resell-inherit-preview .modal-actions {
+  flex: 0 0 auto;
+  gap: 0;
+  padding: 10px 18px 16px;
+}
+
+.modal-card--resell-inherit-preview .modal-actions button {
+  width: 100%;
+  height: 44px;
+  border: 0;
+  border-radius: 8px;
+  background: #262626;
+  color: #fff;
+  font-family: var(--mc-serif);
+  font-size: 14px;
+}
+
+.resell-inherit-preview-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.resell-inherit-preview-item {
+  padding: 12px 12px 10px;
+  border: 0.5px solid rgba(38, 38, 38, 0.35);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.resell-inherit-preview-item__recall {
+  margin: 0;
+  color: #262626;
+  font-family: var(--mc-serif-light);
+  font-size: 13px;
+  line-height: 18px;
+  letter-spacing: -0.02em;
+}
+
+.resell-inherit-preview-item__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.resell-inherit-preview-item__tags span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border: 0.5px solid rgba(38, 38, 38, 0.45);
+  border-radius: 4px;
+  color: #262626;
+  font-family: var(--mc-font);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.resell-inherit-preview-item__empty-tags {
+  margin: 8px 0 0;
+  color: rgba(38, 38, 38, 0.55);
+  font-family: var(--mc-font);
+  font-size: 11px;
 }
 
 /* Resell purchase complete — Figma 901:10856 */
