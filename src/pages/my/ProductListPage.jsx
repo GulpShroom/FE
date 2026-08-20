@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { AppShell } from '../../components/AppShell'
 import { EmptyProductState } from '../../components/EmptyProductState'
 import { useProfile } from '../../context/ProfileContext'
-import { createCareTip, cacheLocalCareTip } from '../../api/my'
+import { createCareTip, cacheLocalCareTip, getCareTips, getLocalCareTips, mapCareTip, pickPreferredCareTip } from '../../api/my'
 import {
   buildKeeperGenerations,
   getDigitalPassport,
@@ -71,6 +71,7 @@ export default function ProductListPage() {
   const [careError, setCareError] = useState('')
   const [careEditing, setCareEditing] = useState(false)
   const [catalog, setCatalog] = useState([])
+  const [selectedId, setSelectedId] = useState(null)
   const [passport, setPassport] = useState(null)
   const [summary, setSummary] = useState(null)
   const [lineage, setLineage] = useState([])
@@ -85,9 +86,14 @@ export default function ProductListPage() {
 
   const listKey = `products:${profile.id}:all`
   const listLoading = listLoadedKey !== listKey
-  // 여권/케어팁은 현재 소유 제품을 우선 표시
-  const featured =
-    catalog.find((p) => p.ownershipStatus === 'owning') ?? catalog[0] ?? null
+  const featured = useMemo(() => {
+    if (!catalog.length) return null
+    if (selectedId != null) {
+      const selected = catalog.find((p) => String(p.id) === String(selectedId))
+      if (selected) return selected
+    }
+    return catalog.find((p) => p.ownershipStatus === 'owning') ?? catalog[0] ?? null
+  }, [catalog, selectedId])
   const detailKey = featured ? `detail:${featured.id}` : null
   const canWriteCareTip = featured?.ownershipStatus === 'owning'
 
@@ -102,6 +108,11 @@ export default function ProductListPage() {
         if (cancelled) return
         const rows = (data?.products ?? []).map(mapUserProduct)
         setCatalog(rows)
+        setSelectedId((prev) => {
+          if (prev != null && rows.some((p) => String(p.id) === String(prev))) return prev
+          const initial = rows.find((p) => p.ownershipStatus === 'owning') ?? rows[0]
+          return initial ? String(initial.id) : null
+        })
         setListError(null)
         setListPage(0)
         setListLoadedKey(listKey)
@@ -122,6 +133,9 @@ export default function ProductListPage() {
 
     let cancelled = false
     const productId = featured.id
+    const generationHint =
+      featured.generation ?? featured.currentGeneration ?? null
+
     Promise.all([
       getDigitalPassport(productId),
       getProductSummary(productId),
@@ -129,13 +143,35 @@ export default function ProductListPage() {
     ])
       .then(async ([passportData, summaryData, lineageData]) => {
         if (cancelled) return
+        const mappedPassport = mapDigitalPassport(passportData)
         const gens = (lineageData?.generations ?? []).map(mapLineageGeneration)
-        setPassport(mapDigitalPassport(passportData))
+        setPassport(mappedPassport)
         setSummary(mapProductSummary(summaryData))
         setLineage(gens)
         setDetailError(null)
-        setCareTipText('')
         setCareEditing(false)
+
+        const generation =
+          generationHint ??
+          mappedPassport.currentGeneration ??
+          gens.find((g) => g.active)?.generation ??
+          1
+
+        // 케어팁은 여권과 분리 조회 — 실패해도 여권은 유지, 로컬 캐시로 복구
+        try {
+          const careTipsData = await getCareTips(productId)
+          if (cancelled) return
+          const remoteTips = (careTipsData?.careTips ?? []).map(mapCareTip)
+          const localTips = getLocalCareTips(productId).map(mapCareTip)
+          const tips = remoteTips.length ? remoteTips : localTips
+          const preferred = pickPreferredCareTip(tips, generation)
+          setCareTipText(preferred?.content || '')
+        } catch {
+          if (cancelled) return
+          const localTips = getLocalCareTips(productId).map(mapCareTip)
+          const preferred = pickPreferredCareTip(localTips, generation)
+          setCareTipText(preferred?.content || '')
+        }
 
         const letterTarget =
           gens.find((g) => g.active && g.hasOpenedLetter) ||
@@ -167,6 +203,10 @@ export default function ProductListPage() {
         setSummary(null)
         setLineage([])
         setLetter(null)
+        // 여권 로드 실패 시에도 로컬 케어팁은 유지 시도
+        const localTips = getLocalCareTips(productId).map(mapCareTip)
+        const preferred = pickPreferredCareTip(localTips, generationHint)
+        setCareTipText(preferred?.content || '')
         setDetailError(err.message || '디지털 여권을 불러오지 못했습니다')
         setDetailLoadedKey(`detail:${productId}`)
       })
@@ -285,7 +325,9 @@ export default function ProductListPage() {
       )
       cacheLocalCareTip(featured.id, {
         id: data?.careTipId != null ? `tip-${data.careTipId}` : `tip-${Date.now()}`,
+        careTipId: data?.careTipId,
         generation,
+        content,
         date: (() => {
           const d = data?.createdAt ? new Date(data.createdAt) : new Date()
           if (Number.isNaN(d.getTime())) return ''
@@ -302,7 +344,16 @@ export default function ProductListPage() {
           lineage.find((g) => String(g.generation) === generation)?.label ||
           `${generation} Keeper`,
       })
-      setCareTipText(content)
+
+      // 저장 후 목록 재조회로 최신 팁 확정 (다른 제품 갔다 와도 유지)
+      try {
+        const careTipsData = await getCareTips(featured.id)
+        const tips = (careTipsData?.careTips ?? []).map(mapCareTip)
+        const preferred = pickPreferredCareTip(tips, generation)
+        setCareTipText(preferred?.content || content)
+      } catch {
+        setCareTipText(content)
+      }
       setCareDraft('')
       setCareEditing(false)
     } catch (err) {
@@ -340,7 +391,7 @@ export default function ProductListPage() {
     letter?.content ||
     featured?.inheritanceLetter?.content ||
     '조회 가능한 계승 편지가 없습니다.'
-  const displayedCareTip = careTipText || '가죽은 비오는 날에 주의해야 해요.'
+  const displayedCareTip = careTipText || '아직 작성된 케어팁이 없습니다.'
 
   return (
     <AppShell showBack onBack={() => navigate('/my')}>
@@ -542,15 +593,26 @@ export default function ProductListPage() {
               <div className="my-product-list">
                 {pageItems.map((item) => {
                   const owned = item.ownershipStatus === 'owning'
+                  const selected = featured && String(featured.id) === String(item.id)
                   return (
-                    <Link
+                    <div
                       key={item.id}
-                      to={`/my/products/${item.id}`}
-                      className={`product-row${owned ? ' product-row--owned' : ' product-row--linked'}`}
-                      onClick={(e) => {
+                      role="button"
+                      tabIndex={0}
+                      className={`product-row${owned ? ' product-row--owned' : ' product-row--linked'}${selected ? ' is-selected' : ''}`}
+                      onClick={() => {
                         if (didSwipe.current) {
-                          e.preventDefault()
                           didSwipe.current = false
+                          return
+                        }
+                        setSelectedId(String(item.id))
+                        setFlipped(false)
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          setSelectedId(String(item.id))
+                          setFlipped(false)
                         }
                       }}
                     >
@@ -571,9 +633,16 @@ export default function ProductListPage() {
                       </div>
                       <span className="badge">{ownershipBadge(item.ownershipStatus)}</span>
                       {owned ? (
-                        <img className="product-row__go" src={chevronsRight} alt="" width={24} height={24} />
+                        <Link
+                          to={`/my/products/${item.id}`}
+                          className="product-row__go-link"
+                          aria-label={`${item.alias} 상세 이력`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <img className="product-row__go" src={chevronsRight} alt="" width={24} height={24} />
+                        </Link>
                       ) : null}
-                    </Link>
+                    </div>
                   )
                 })}
               </div>

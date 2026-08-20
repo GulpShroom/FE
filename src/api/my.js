@@ -30,6 +30,38 @@ export function createCareTip(productId, { authorId, content }) {
   })
 }
 
+export function getCareTips(productId) {
+  return api.get(`/products/${toApiId(productId)}/care-tips`)
+}
+
+export function mapCareTip(item) {
+  const content = item?.content || item?.result || ''
+  const generation = item?.generation != null ? String(item.generation) : ''
+  return {
+    id: item?.careTipId != null ? `tip-${item.careTipId}` : item?.id || `tip-${content.slice(0, 12)}`,
+    careTipId: item?.careTipId,
+    generation,
+    content,
+    title: content.length > 18 ? `${content.slice(0, 18)}…` : content,
+    short: content.length > 18 ? `${content.slice(0, 18)}…` : content,
+    result: content,
+    solution: '',
+    keeper: generation ? `${generation} Keeper` : 'Keeper',
+    date: item?.date || '',
+  }
+}
+
+export function pickPreferredCareTip(tips, generation) {
+  const rows = Array.isArray(tips) ? tips : []
+  if (!rows.length) return null
+  const gen = generation != null && generation !== '' ? String(generation) : null
+  const matched = gen ? rows.filter((tip) => String(tip.generation) === gen) : rows
+  const pool = matched.length ? matched : rows
+  return pool.reduce((best, tip) => (
+    Number(tip?.careTipId) > Number(best?.careTipId) ? tip : best
+  ), pool[0])
+}
+
 /**
  * POST /products/{productId}/diagnosis
  * OpenAPI: photos = multipart, userId = query

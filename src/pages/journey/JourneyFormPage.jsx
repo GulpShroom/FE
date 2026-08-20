@@ -18,6 +18,7 @@ import {
   getJourney,
   mapJourneyDetail,
   monthToUi,
+  regenerateJourneyRecall,
   updateJourney,
 } from '../../api/journeys'
 import { getUserProducts, mapUserProduct } from '../../api/products'
@@ -285,11 +286,29 @@ export default function JourneyFormPage() {
   }
 
   const onReplay = () => {
+    // 수정: 저장된 여정 태그 기반 회고 재생성 API
+    if (isEdit && id) {
+      setAnalyzing(true)
+      setError(null)
+      regenerateJourneyRecall(id, { userId: profile.id, tone: form.tone })
+        .then((data) => {
+          setForm((f) => applyAnalyzeToForm(f, data))
+        })
+        .catch((err) => {
+          setError(err.message || '회고 문장 재생성에 실패했습니다')
+        })
+        .finally(() => {
+          setAnalyzing(false)
+        })
+      return
+    }
+
+    // 작성: 사진 + analyze API
     if (photoFileRef.current) {
       void runAnalyze()
       return
     }
-    setField('quote', QUOTE_SAMPLES[form.tone] ?? form.quote)
+    setError('AI 큐레이터를 쓰려면 먼저 사진을 업로드해 주세요.')
   }
 
   const onPhoto = async (e) => {
