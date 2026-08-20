@@ -673,12 +673,6 @@ export default function MainPage() {
           }}
         />
 
-        <Link
-          className="main-journey-add-button"
-          to={`/journey/new?productId=${encodeURIComponent(product.id)}`}
-        >
-          <span>여정 기록하기</span>
-        </Link>
       </main>
     </AppShell>
   )
