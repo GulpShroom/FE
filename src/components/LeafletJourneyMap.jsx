@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import L from 'leaflet'
 import { MapContainer, Marker, TileLayer, useMap } from 'react-leaflet'
 import { feature } from 'topojson-client'
@@ -39,30 +39,40 @@ function CountryViewport({ countryId }) {
   return null
 }
 
+function resolveJourneyId(point) {
+  const id = point?.journeyId ?? point?.id ?? point?.journey_id
+  if (id == null || id === '') return null
+  return id
+}
+
 function createPhotoMarker(point) {
-  const marker = document.createElement('div')
-  marker.className = 'leaflet-journey-marker'
+  const root = document.createElement('div')
+  root.className = 'leaflet-journey-marker'
 
   const image = document.createElement('img')
   image.src = point.photoUrl || point.thumbnailUrl || journeyThumb
   image.alt = ''
-  marker.append(image)
+  image.draggable = false
+  root.append(image)
 
   if (point.value != null) {
     const count = document.createElement('span')
     count.textContent = String(point.value)
-    marker.append(count)
+    root.append(count)
   }
 
   return L.divIcon({
     className: 'leaflet-journey-marker-wrap',
-    html: marker,
+    html: root,
     iconSize: [52, 52],
     iconAnchor: [26, 26],
   })
 }
 
-export function LeafletJourneyMap({ points = [], countryId = 'all' }) {
+export function LeafletJourneyMap({ points = [], countryId = 'all', onMarkerClick }) {
+  const onClickRef = useRef(onMarkerClick)
+  onClickRef.current = onMarkerClick
+
   const visiblePoints = useMemo(
     () => points.filter((point) => (
       countryId === 'all' || String(point.country).toLowerCase() === countryId
@@ -71,7 +81,7 @@ export function LeafletJourneyMap({ points = [], countryId = 'all' }) {
   )
 
   const markers = useMemo(() => visiblePoints.flatMap((point, index) => {
-    const pointCountryId = String(point.country).toLowerCase()
+    const pointCountryId = String(point.country || '').toLowerCase()
     const fallbackCenter = countryById.get(pointCountryId)?.center
     const position = Number.isFinite(point.latitude) && Number.isFinite(point.longitude)
       ? [point.latitude, point.longitude]
@@ -79,16 +89,22 @@ export function LeafletJourneyMap({ points = [], countryId = 'all' }) {
 
     if (!position) return []
 
+    const journeyId = resolveJourneyId(point)
+    const normalizedPoint = journeyId == null ? point : { ...point, journeyId }
+
     return [{
-      key: point.journeyId || `${pointCountryId}-${index}`,
+      key: String(journeyId ?? `${pointCountryId}-${index}-${position[0]}-${position[1]}`),
+      point: normalizedPoint,
       position,
-      icon: createPhotoMarker(point),
+      icon: createPhotoMarker(normalizedPoint),
     }]
   }), [visiblePoints])
 
+  const clickable = typeof onMarkerClick === 'function'
+
   return (
     <MapContainer
-      className="leaflet-journey-map"
+      className={`leaflet-journey-map${clickable ? ' leaflet-journey-map--clickable' : ''}`}
       center={[25, 15]}
       zoom={2}
       minZoom={2}
@@ -106,6 +122,22 @@ export function LeafletJourneyMap({ points = [], countryId = 'all' }) {
           key={marker.key}
           position={marker.position}
           icon={marker.icon}
+          interactive={clickable}
+          keyboard={clickable}
+          bubblingMouseEvents={false}
+          eventHandlers={
+            clickable
+              ? {
+                  click: (event) => {
+                    // 지도 클릭으로 전파되지 않게만 막고, Leaflet 마커 클릭은 유지
+                    if (event.originalEvent) {
+                      L.DomEvent.stopPropagation(event.originalEvent)
+                    }
+                    onClickRef.current?.(marker.point)
+                  },
+                }
+              : undefined
+          }
         />
       ))}
     </MapContainer>

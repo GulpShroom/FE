@@ -7,7 +7,7 @@ export const currentUser = {
   id: Number(import.meta.env.VITE_USER_ID) || 1,
   name: '서강주니',
   handle: 'Kangjunlove_0502',
-  ownedCount: 12,
+  ownedCount: 0,
 }
 
 export const mapCountries = [

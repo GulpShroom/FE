@@ -22,12 +22,14 @@ export function ProfileProvider({ children }) {
         const parsed = JSON.parse(saved)
         if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
           const userId = parsed.userId ?? parsed.id ?? defaultProfile.userId
+          // ownedCount는 API로만 갱신 — 세션에 남은 mock(12) 값이 깜빡이지 않게 무시
           return {
             ...defaultProfile,
             ...parsed,
             id: userId,
             userId,
             nickname: parsed.nickname ?? parsed.name ?? defaultProfile.nickname,
+            ownedCount: 0,
           }
         }
         window.sessionStorage.removeItem('mcarry-profile')
@@ -37,6 +39,7 @@ export function ProfileProvider({ children }) {
     }
 
     return defaultProfile
+
   })
 
   const updateProfile = (updater) => {
@@ -65,7 +68,7 @@ export function ProfileProvider({ children }) {
           name: selected.nickname || profile.name,
           nickname: selected.nickname || profile.nickname || profile.name,
           profileType: selected.profileType,
-          ownedCount: selected.ownedCount ?? profile.ownedCount,
+          ownedCount: selected.ownedCount ?? 0,
         }
 
         window.sessionStorage.setItem('mcarry-profile', JSON.stringify(next))

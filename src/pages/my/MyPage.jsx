@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { AppShell } from '../../components/AppShell'
 import { useProfile } from '../../context/ProfileContext'
 import { usePhotoPick } from '../../hooks/usePhotoPick'
+import { isNotFoundError } from '../../api/client'
+import { getUserProducts } from '../../api/products'
 import cameraIcon from '../../assets/final/camera.svg'
 import chevronIcon from '../../assets/final/chevron.svg'
 
@@ -11,6 +13,7 @@ export default function MyPage() {
   const [editingName, setEditingName] = useState(false)
   const [nameDraft, setNameDraft] = useState(profile.name)
   const [sourceOpen, setSourceOpen] = useState(false)
+  const [ownedCount, setOwnedCount] = useState(null)
   const nameInputRef = useRef(null)
 
   const { pickers, openGallery, openCamera } = usePhotoPick({
@@ -24,12 +27,35 @@ export default function MyPage() {
     if (editingName) nameInputRef.current?.focus()
   }, [editingName])
 
+  useEffect(() => {
+    let cancelled = false
+    setOwnedCount(null)
+    getUserProducts(profile.id, { status: 'owning' })
+      .then((data) => {
+        if (cancelled) return
+        setOwnedCount((data?.products ?? []).length)
+      })
+      .catch((err) => {
+        if (cancelled) return
+        if (isNotFoundError(err)) {
+          setOwnedCount(0)
+          return
+        }
+        setOwnedCount(0)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [profile.id])
+
   const saveName = () => {
     const next = nameDraft.trim()
     if (next) setName(next)
     else setNameDraft(profile.name)
     setEditingName(false)
   }
+
+  const displayOwnedCount = ownedCount === null ? '…' : ownedCount
 
   return (
     <AppShell>
@@ -84,7 +110,7 @@ export default function MyPage() {
           <Link to="/my/products" className="owned-box">
             <div className="owned-box__copy">
               <p className="owned-box__label">보유 제품</p>
-              <p className="owned-box__count">{profile.ownedCount}</p>
+              <p className="owned-box__count">{displayOwnedCount}</p>
             </div>
             <img className="owned-box__chevron" src={chevronIcon} alt="" width={30} height={30} />
           </Link>

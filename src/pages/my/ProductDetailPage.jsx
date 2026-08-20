@@ -1,9 +1,16 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { AppShell } from '../../components/AppShell'
+import { getLocalCareTips, getLocalDiagnoses } from '../../api/my'
+import {
+  getDigitalPassport,
+  getProductLineage,
+  mapDigitalPassport,
+  mapLineageGeneration,
+} from '../../api/products'
 import chevronsRight from '../../assets/final/chevrons-right.svg'
 import diamondIcon from '../../assets/final/diamond.svg'
-import { products } from '../../data/mock'
+import bagFallback from '../../assets/final/bag-1.png'
 
 function HistoryRow({ item, onOpen }) {
   return (
@@ -16,14 +23,6 @@ function HistoryRow({ item, onOpen }) {
       </span>
     </button>
   )
-}
-
-function genLabel(index) {
-  const n = index + 1
-  if (n === 1) return '1st'
-  if (n === 2) return '2nd'
-  if (n === 3) return '3rd'
-  return `${n}th`
 }
 
 function GenDropdown({ options, value, onChange, menuId }) {
@@ -67,46 +66,98 @@ function GenDropdown({ options, value, onChange, menuId }) {
   )
 }
 
+function matchesGeneration(itemGen, filter) {
+  if (filter === 'all') return true
+  return String(itemGen ?? '') === String(filter)
+}
+
 export default function ProductDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const product = products.find((p) => p.id === id) ?? products[0]
+  const [product, setProduct] = useState(null)
+  const [lineage, setLineage] = useState([])
+  const [loadError, setLoadError] = useState(null)
+  const [loadedKey, setLoadedKey] = useState(null)
   const [detail, setDetail] = useState(null)
+  const [careTips, setCareTips] = useState(() => getLocalCareTips(id))
+  const [diagnoses, setDiagnoses] = useState(() => getLocalDiagnoses(id))
+  const [diagGen, setDiagGen] = useState('all')
+  const [careGen, setCareGen] = useState('all')
+
+  const fetchKey = `care:${id}`
+  const loading = loadedKey !== fetchKey
+
+  useEffect(() => {
+    let cancelled = false
+    Promise.all([getDigitalPassport(id), getProductLineage(id)])
+      .then(([passportData, lineageData]) => {
+        if (cancelled) return
+        setProduct(mapDigitalPassport(passportData))
+        setLineage((lineageData?.generations ?? []).map(mapLineageGeneration))
+        setCareTips(getLocalCareTips(id))
+        setDiagnoses(getLocalDiagnoses(id))
+        setLoadError(null)
+        setLoadedKey(fetchKey)
+      })
+      .catch((err) => {
+        if (cancelled) return
+        setProduct(null)
+        setLineage([])
+        setLoadError(err.message || '제품 정보를 불러오지 못했습니다')
+        setLoadedKey(fetchKey)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [id, fetchKey])
+
+  useEffect(() => {
+    const refresh = () => {
+      setCareTips(getLocalCareTips(id))
+      setDiagnoses(getLocalDiagnoses(id))
+    }
+    window.addEventListener('focus', refresh)
+    return () => window.removeEventListener('focus', refresh)
+  }, [id])
 
   const genOptions = useMemo(() => {
-    const gens = (product.generations ?? []).map((_, i) => {
-      const label = genLabel(i)
-      return { value: label, label }
-    })
+    const gens = lineage.map((g) => ({
+      value: String(g.generation),
+      label: g.label,
+    }))
     return [{ value: 'all', label: '전체' }, ...gens]
-  }, [product])
+  }, [lineage])
 
-  const defaultGen = genOptions[1]?.value ?? 'all'
-  const [diagGen, setDiagGen] = useState(defaultGen)
-  const [careGen, setCareGen] = useState(defaultGen)
-
-  const diagnoses = product.diagnoses.filter((d) =>
-    diagGen === 'all' ? true : (d.generation ?? '1st') === diagGen,
-  )
-
-  const careItems = product.careHistory.filter((c) =>
-    careGen === 'all' ? true : (c.generation ?? '1st') === careGen,
-  )
+  const filteredDiagnoses = diagnoses.filter((d) => matchesGeneration(d.generation, diagGen))
+  const filteredCareTips = careTips.filter((c) => matchesGeneration(c.generation, careGen))
 
   return (
     <AppShell showBack onBack={() => navigate('/my/products')}>
       <div className="page page--care">
-        <Link to={`/my/products/${product.id}/ai`} className="product-row product-row--owned">
-          <div className="product-row__thumb">
-            <img src={product.thumb} alt="" width={70} height={70} />
-          </div>
-          <div className="product-row__copy">
-            <p className="product-row__alias">{product.alias}</p>
-            <p className="product-row__name">{product.shortName}</p>
-          </div>
-          <span className="badge">소유중</span>
-          <img className="product-row__go" src={chevronsRight} alt="" width={24} height={24} />
-        </Link>
+        {loading ? <p className="journeys-status">제품 정보를 불러오는 중...</p> : null}
+        {loadError ? <p className="journeys-status journeys-status--error">{loadError}</p> : null}
+
+        {product ? (
+          <Link to={`/my/products/${product.id}/ai`} className="product-row product-row--owned">
+            <div className="product-row__thumb">
+              <img
+                src={product.image || bagFallback}
+                alt=""
+                width={70}
+                height={70}
+                onError={(e) => {
+                  e.currentTarget.src = bagFallback
+                }}
+              />
+            </div>
+            <div className="product-row__copy">
+              <p className="product-row__alias">{product.alias}</p>
+              <p className="product-row__name">{product.name}</p>
+            </div>
+            <span className="badge">소유중</span>
+            <img className="product-row__go" src={chevronsRight} alt="" width={24} height={24} />
+          </Link>
+        ) : null}
 
         <section className="care-section">
           <div className="care-section__head">
@@ -117,16 +168,16 @@ export default function ProductDetailPage() {
               value={diagGen}
               onChange={setDiagGen}
             />
-            <Link to={`/my/products/${product.id}/ai`} className="care-section__cta">
+            <Link to={`/my/products/${id}/ai`} className="care-section__cta">
               AI 상태 진단 하러 가기
             </Link>
           </div>
 
           <div className="care-rows">
-            {diagnoses.length === 0 ? (
-              <p className="hint-text">진단 이력이 없습니다.</p>
+            {filteredDiagnoses.length === 0 ? (
+              <p className="hint-text">아직 진단 기록이 없습니다.</p>
             ) : (
-              diagnoses.map((d) => (
+              filteredDiagnoses.map((d) => (
                 <HistoryRow key={d.id} item={d} onOpen={setDetail} />
               ))
             )}
@@ -145,10 +196,10 @@ export default function ProductDetailPage() {
           </div>
 
           <div className="care-rows">
-            {careItems.length === 0 ? (
-              <p className="hint-text">케어 이력이 없습니다.</p>
+            {filteredCareTips.length === 0 ? (
+              <p className="hint-text">아직 케어 이력이 없습니다.</p>
             ) : (
-              careItems.map((c) => <HistoryRow key={c.id} item={c} onOpen={setDetail} />)
+              filteredCareTips.map((c) => <HistoryRow key={c.id} item={c} onOpen={setDetail} />)
             )}
           </div>
         </section>
@@ -161,14 +212,11 @@ export default function ProductDetailPage() {
           aria-modal="true"
           onClick={() => setDetail(null)}
         >
-          <div
-            className="modal-card modal-card--care"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="modal-card modal-card--care" onClick={(e) => e.stopPropagation()}>
             <p className="care-modal__keeper">{detail.keeper ?? '1st keeper'}</p>
             <div className="care-modal__date-row">
               <span>진단 날짜</span>
-              <strong>{detail.date.replace(/\./g, '. ')}</strong>
+              <strong>{String(detail.date || '').replace(/\./g, '. ')}</strong>
             </div>
             <div className="care-modal__block">
               <p className="care-modal__label">진단 결과</p>

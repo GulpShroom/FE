@@ -10,7 +10,7 @@ const mockProfiles = {
     userId: 1,
     nickname: '민지',
     profileType: 'first_keeper',
-    ownedCount: 12,
+    ownedCount: 0,
   },
   next_keeper: {
     userId: 2,
