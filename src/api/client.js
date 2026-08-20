@@ -1,5 +1,7 @@
 import axios from 'axios'
 
+// API modules use paths such as `/users` and `/products`, so the shared
+// `/api/v1/mcarry` prefix belongs in the axios base URL.
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1/mcarry'
 
 export class ApiError extends Error {
@@ -18,6 +20,8 @@ export const api = axios.create({
   timeout: 15000,
   headers: { 'Content-Type': 'application/json' },
 })
+
+export default api
 
 function clearContentType(headers) {
   if (!headers) return
