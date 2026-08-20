@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { AppShell } from '../../components/AppShell'
 import { Modal } from '../../components/Modal'
+import { deleteResell } from '../../api/resells'
+import { useProfile } from '../../context/ProfileContext'
 import { useResellList } from '../../hooks/useResellList'
 import fabRing from '../../assets/final/resell-fab-main.svg'
 import fabVertical from '../../assets/final/resell-fab-detail-a.svg'
@@ -12,19 +14,25 @@ import deleteModalLogo from '../../assets/final/resell-delete-logo.png'
 export default function ResellListPage() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
+  const { profile } = useProfile()
+  const userId = Number(profile.userId ?? profile.id)
+  const hasUserId = Number.isFinite(userId) && userId > 0
   const manageFromUrl = params.get('manage') === '1'
   const [localManaging, setLocalManaging] = useState(false)
   const managing = manageFromUrl || localManaging
   const [scope, setScope] = useState(manageFromUrl ? 'mine' : 'all')
   const [deleteId, setDeleteId] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState(null)
   const [manageIndex, setManageIndex] = useState(0)
   const [completedNotice, setCompletedNotice] = useState(false)
   const completedNoticeTimer = useRef(null)
   const isMineScope = scope === 'mine' || managing
   const { data, isLoading, error, refetch } = useResellList(
     isMineScope
-      ? { userId: 1, role: 'seller', page: 0, size: 10 }
+      ? { userId, role: 'seller', page: 0, size: 10 }
       : { status: 'active', page: 0, size: 10 },
+    { enabled: !isMineScope || hasUserId },
   )
   const list = data.resells
 
@@ -34,6 +42,14 @@ export default function ResellListPage() {
     },
     [],
   )
+
+  useEffect(() => {
+    if (list.length === 0) {
+      setManageIndex(0)
+      return
+    }
+    if (manageIndex >= list.length) setManageIndex(list.length - 1)
+  }, [list.length, manageIndex])
 
   const showCompletedNotice = () => {
     setCompletedNotice(true)
@@ -45,6 +61,30 @@ export default function ResellListPage() {
   }
 
   const managePost = list[manageIndex] ?? list[0]
+
+  const closeDeleteModal = () => {
+    if (deleting) return
+    setDeleteId(null)
+    setDeleteError(null)
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteId || !hasUserId || deleting) return false
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      await deleteResell(deleteId, { sellerId: userId })
+      setDeleteId(null)
+      setManageIndex(0)
+      refetch()
+      return true
+    } catch (err) {
+      setDeleteError(err?.message || '리셀글을 삭제하지 못했습니다.')
+      return false
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   if (managing) {
     return (
@@ -62,7 +102,11 @@ export default function ResellListPage() {
         >
           <h1 className="resell-create__title">내 리셀글 관리</h1>
 
-          {isLoading ? (
+          {!hasUserId ? (
+            <div className="resell-empty" role="alert">
+              <p className="resell-empty__title">프로필을 선택한 뒤 이용해 주세요.</p>
+            </div>
+          ) : isLoading ? (
             <div className="resell-empty" role="status">
               <p className="resell-empty__title">리셀글을 불러오는 중입니다.</p>
             </div>
@@ -86,26 +130,19 @@ export default function ResellListPage() {
               >
                 <div className="resell-overview__inner">
                   <p className="resell-overview__eyebrow">Journey Overview</p>
-                  <p className="resell-overview__alias">
-                    {managePost.nickname}
-                  </p>
+                  <p className="resell-overview__alias">{managePost.nickname}</p>
                   <div className="resell-overview__meta">
                     <span>{managePost.postStatus}</span>
                     <span>상태 {managePost.conditionGrade}</span>
                   </div>
-                  <p className="resell-overview__score">
-                    {managePost.provenanceScore}
-                  </p>
+                  <p className="resell-overview__score">{managePost.provenanceScore}</p>
                 </div>
               </button>
 
               <div className="passport-rail" aria-label="리셀글 선택">
                 {list.map((post, index) =>
                   index === manageIndex ? (
-                    <span
-                      key={post.resellId}
-                      className="passport-rail__pill"
-                    />
+                    <span key={post.resellId} className="passport-rail__pill" />
                   ) : (
                     <button
                       key={post.resellId}
@@ -122,7 +159,10 @@ export default function ResellListPage() {
                 <button
                   type="button"
                   className="resell-dual__btn"
-                  onClick={() => setDeleteId(managePost.resellId)}
+                  onClick={() => {
+                    setDeleteError(null)
+                    setDeleteId(managePost.resellId)
+                  }}
                 >
                   삭제하기
                 </button>
@@ -141,24 +181,21 @@ export default function ResellListPage() {
         <Modal
           open={Boolean(deleteId)}
           title="이 리셀글을 삭제하시겠습니까?"
-          primaryLabel="삭제하기"
+          primaryLabel={deleting ? '삭제 중...' : '삭제하기'}
           secondaryLabel="취소하기"
           variant="resell-delete"
           logoSrc={deleteModalLogo}
           danger
-          onPrimary={() => {
-            setManageIndex(0)
-            setDeleteId(null)
-            refetch()
-          }}
-          onSecondary={() => setDeleteId(null)}
-          onClose={() => setDeleteId(null)}
+          onPrimary={confirmDelete}
+          onSecondary={closeDeleteModal}
+          onClose={closeDeleteModal}
         >
           <p>삭제된 리셀글은 복구할 수 없습니다.</p>
+          {deleteError ? <p role="alert">{deleteError}</p> : null}
         </Modal>
 
         <Modal
-          open={!isLoading && !error && list.length === 0}
+          open={hasUserId && !isLoading && !error && list.length === 0}
           primaryLabel="확인"
           hideSecondary
           variant="resell-empty-notice"
@@ -225,7 +262,11 @@ export default function ResellListPage() {
           </button>
         </div>
 
-        {isLoading ? (
+        {isMineScope && !hasUserId ? (
+          <div className="resell-empty" role="alert">
+            <p className="resell-empty__title">프로필을 선택한 뒤 이용해 주세요.</p>
+          </div>
+        ) : isLoading ? (
           <div className="resell-empty" role="status">
             <p className="resell-empty__title">리셀글을 불러오는 중입니다.</p>
           </div>
@@ -269,14 +310,11 @@ export default function ResellListPage() {
                     </p>
                   </div>
                 </Link>
-                <span className="resell-card__status">
-                  {post.postStatus}
-                </span>
+                <span className="resell-card__status">{post.postStatus}</span>
               </article>
             ))}
           </div>
         )}
-
       </div>
 
       {completedNotice ? (
