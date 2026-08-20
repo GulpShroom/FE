@@ -7,8 +7,9 @@ import {
   getResellDetail,
   normalizeConditionGrade,
 } from '../../api/resells'
+import { clearResellLetterDraft, getResellLetterDraft } from '../../api/resellLetterDraft'
 import { loadResellSharedContents, resolveOwnedProductId } from '../../api/resellContent'
-import { completeTransfer, startTransfer } from '../../api/transfers'
+import { completeTransfer, createTransferLetter, startTransfer } from '../../api/transfers'
 import { useProfile } from '../../context/ProfileContext'
 import previewImageIcon from '../../assets/final/resell-preview-image.svg'
 import checkCircleIcon from '../../assets/final/resell-check-circle.svg'
@@ -148,9 +149,21 @@ export default function ResellDetailPage() {
         resellId: Number(id),
         buyerId: userId,
       })
+
+      // 판매자가 리셀 등록 시 작성한 편지를 계승 transfer에 봉인 → complete 시 구매자에게 개봉
+      const sellerLetter = getResellLetterDraft(id).trim()
+      if (sellerLetter && started?.transferId != null && started?.fromUserId != null) {
+        await createTransferLetter(started.transferId, {
+          authorId: started.fromUserId,
+          content: sellerLetter,
+          isAiDraft: false,
+        })
+      }
+
       const completed = await completeTransfer(started.transferId, {
         newOwnerId: userId,
       })
+      clearResellLetterDraft(id)
       setTransferContext({
         transferId: started.transferId,
         productId: completed.productId ?? started.productId,
@@ -165,7 +178,7 @@ export default function ResellDetailPage() {
           wantLetter: true,
           wantCareTip: true,
         })
-        setLetterContent(shared.letter || '')
+        setLetterContent(shared.letter || sellerLetter || '')
         setCareTipContent(shared.careTip || '')
       }
       setBuyOpen(false)
