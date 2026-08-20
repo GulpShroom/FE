@@ -68,6 +68,22 @@
 }
 
 @font-face {
+  font-family: 'Bodoni Moda';
+  src: url('../assets/fonts/BodoniModa-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  src: url('../assets/fonts/PlusJakartaSans-Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
   font-family: 'Paperlogy';
   src:
     local('Paperlogy 4 Regular'),

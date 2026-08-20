@@ -31,6 +31,8 @@ export const FIGMA = {
 
 /** Canonical screen nodes to implement (prefer ✅ / latest polished copies) */
 export const SCREENS = {
+  landing: '1398:267', // 랜딩 페이지 / Keeper 선택 / Brand Color
+
   // —— Main (재일) ——
   mainSelected: '1044:8366', // ✅ 메인페이지 - 제품 선택 완료
   mainBeforeSelect: '978:331', // ✅ 메인페이지 - 제품 선택 전
