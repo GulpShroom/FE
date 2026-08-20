@@ -78,10 +78,10 @@ export function createDiagnosis(productId, { userId, photos }) {
 }
 
 /** POST /transfers/{transferId}/letter/draft */
-export function createLetterDraft(transferId, { userId, prompt } = {}) {
+export function createLetterDraft(transferId, { userId, authorId, prompt } = {}) {
   return api.post(`/transfers/${toApiId(transferId)}/letter/draft`, {
-    userId: userId == null ? undefined : toApiId(userId),
-    prompt,
+    authorId: toApiId(authorId ?? userId),
+    ...(prompt ? { prompt } : {}),
   })
 }
 
