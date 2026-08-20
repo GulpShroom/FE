@@ -13,6 +13,10 @@ import RegisterFlowPage from './pages/register/RegisterFlowPage'
 import ResellListPage from './pages/resell/ResellListPage'
 import ResellCreatePage from './pages/resell/ResellCreatePage'
 import ResellDetailPage from './pages/resell/ResellDetailPage'
+import ResellEditPage from './pages/resell/ResellEditPage'
+import ResellJourneyPreviewPage from './pages/resell/ResellJourneyPreviewPage'
+import ResellPassportPage from './pages/resell/ResellPassportPage'
+import ResellAliasPage from './pages/resell/ResellAliasPage'
 
 export default function App() {
   return (
@@ -34,6 +38,10 @@ export default function App() {
             <Route path="/resell" element={<ResellListPage />} />
             <Route path="/resell/new" element={<ResellCreatePage />} />
             <Route path="/resell/:id" element={<ResellDetailPage />} />
+            <Route path="/resell/:id/edit" element={<ResellEditPage />} />
+            <Route path="/resell/:id/journey" element={<ResellJourneyPreviewPage />} />
+            <Route path="/resell/:id/passport" element={<ResellPassportPage />} />
+            <Route path="/resell/:id/alias" element={<ResellAliasPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
